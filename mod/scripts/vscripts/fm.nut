@@ -195,7 +195,6 @@ bool function commandKick(entity player, array<string> args) {
                 return false
             }
         }
-
         kickInfo.voters.append(player)
     } else {
         KickInfo kickInfo

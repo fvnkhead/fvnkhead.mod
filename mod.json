@@ -6,7 +6,7 @@
     "ConVars": [
         {
             "Name": "fm_admin_uids",
-            "DefaultValue": "2441795736,1234,..."
+            "DefaultValue": "xxx2441795736,1234,..."
         },
         {
             "Name": "fm_admin_password",
@@ -18,11 +18,11 @@
         },
         {
             "Name": "fm_kick_percentage",
-            "DefaultValue": "0.5"
+            "DefaultValue": "0.7"
         },
         {
             "Name": "fm_kick_min_players",
-            "DefaultValue": "5"
+            "DefaultValue": "3"
         }
     ],
     "Scripts": [

@@ -17,10 +17,6 @@
             "DefaultValue": "welcome blah blah blah"
         },
         {
-            "Name": "fm_kick_enabled",
-            "DefaultValue": "1"
-        },
-        {
             "Name": "fm_kick_percentage",
             "DefaultValue": "0.5"
         },

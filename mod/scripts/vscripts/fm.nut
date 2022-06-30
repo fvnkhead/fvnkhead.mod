@@ -3,9 +3,17 @@ global function fm_Init
 //------------------------------------------------------------------------------
 // structs
 //------------------------------------------------------------------------------
-struct Command {
+struct CommandInfo {
     string name
-    void functionref(entity, array<string>) fn
+    bool functionref(entity, array<string>) fn
+    int argCount
+    string usage
+}
+
+struct KickInfo {
+    entity target
+    array<entity> voters
+    int threshold
 }
 
 //------------------------------------------------------------------------------
@@ -13,11 +21,15 @@ struct Command {
 //------------------------------------------------------------------------------
 array<string> ADMIN_UIDS = []
 
-array<Command> COMMANDS = []
+array<CommandInfo> COMMANDS = []
 
 string WELCOME = ""
 array<string> WELCOMED_PLAYERS = []
 
+float KICK_PERCENTAGE = 0.0
+int KICK_MIN_PLAYERS = 0
+array<KickInfo> VOTEKICKS = []
+array<entity> KICKED_PLAYERS = []
 
 //------------------------------------------------------------------------------
 // init
@@ -27,6 +39,7 @@ void function fm_Init() {
 
     initAdmins()
     initWelcome()
+    initKick()
     initCommands()
 
     #endif
@@ -35,7 +48,6 @@ void function fm_Init() {
 void function initAdmins() {
     array<string> adminUids = split(GetConVarString("fm_admin_uids"), ",")
     foreach (string uid in adminUids) {
-        print("admin " + uid)
         ADMIN_UIDS.append(strip(uid))
     }
 }
@@ -48,25 +60,34 @@ void function initWelcome() {
     }
 }
 
+void function initKick() {
+    KICK_PERCENTAGE = GetConVarFloat("fm_kick_percentage")
+    KICK_MIN_PLAYERS = GetConVarInt("fm_kick_min_players")
+}
+
 void function initCommands() {
-    COMMANDS.append(newCommand("!help", CommandHelp))
+    COMMANDS.append(newCommandInfo("!help", CommandHelp, 0, "!help => get help"))
+    COMMANDS.append(newCommandInfo("!kick", CommandKick, 1, "!kick <player> => vote to kick a player"))
+
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
 }
 
 //------------------------------------------------------------------------------
 // command handling
 //------------------------------------------------------------------------------
-Command function newCommand(string name, void functionref(entity, array<string>) fn) {
-    Command command
-    command.name = name
-    command.fn = fn
-    return command
+CommandInfo function newCommandInfo(string name, bool functionref(entity, array<string>) fn, int argCount, string usage) {
+    CommandInfo commandInfo
+    commandInfo.name = name
+    commandInfo.fn = fn
+    commandInfo.argCount = argCount
+    commandInfo.usage = usage
+    return commandInfo
 }
 
 ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo) {
     string message = strip(messageInfo.message)
     bool isCommand = format("%c", message[0]) == "!"
-    if (isCommand) {
+    if (isCommand && !IsLobby()) {
         entity player = messageInfo.player
 
         array<string> args = split(message, " ")
@@ -74,16 +95,27 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
         args.remove(0)
 
         bool commandFound = false
-        foreach (Command c in COMMANDS) {
-            if (command == c.name) {
-                wait 0.1
-                c.fn(player, args)
-                commandFound = true
+        bool commandSuccess = false
+        foreach (CommandInfo c in COMMANDS) {
+            if (command != c.name) {
+                continue
             }
+
+            commandFound = true
+
+            if (args.len() != c.argCount) {
+                sendMessage(player, red("usage: " + c.usage))
+                commandSuccess = false
+                break
+            }
+
+            commandSuccess = c.fn(player, args)
         }
 
         if (!commandFound) {
             sendMessage(player, red("unknown command: " + command))
+            messageInfo.shouldBlock = true
+        } else if (!commandSuccess) {
             messageInfo.shouldBlock = true
         }
     }
@@ -114,8 +146,34 @@ void function OnClientDisconnectedWelcome(entity player) {
 //------------------------------------------------------------------------------
 // help
 //------------------------------------------------------------------------------
-void function CommandHelp(entity player, array<string> args) {
-    sendMessage(player, blue("help"))
+bool function CommandHelp(entity player, array<string> args) {
+    string help = "available commands:"
+    foreach (CommandInfo c in COMMANDS) {
+        help += " " + c.name
+    }
+    sendMessage(player, blue(help))
+    return true
+}
+
+//------------------------------------------------------------------------------
+// kick
+//------------------------------------------------------------------------------
+bool function CommandKick(entity player, array<string> args) {
+    string playerName = args[0]
+    array<entity> foundPlayers = findPlayersBySubstring(playerName)
+
+    if (foundPlayers.len() == 0) {
+        sendMessage(player, red("player '" + playerName + "' not found"))
+        return false
+    }
+
+    if (foundPlayers.len() > 1) {
+        sendMessage(player, red("multiple matches for player '" + playerName + "', be more specific"))
+    }
+
+    entity target = foundPlayers[0]
+
+    return true
 }
 
 //------------------------------------------------------------------------------
@@ -139,4 +197,17 @@ void function sendMessage(entity player, string text) {
 
 void function announceMessage(string text) {
     Chat_ServerBroadcast(text)
+}
+
+array<entity> function findPlayersBySubstring(string substring) {
+    substring = substring.tolower()
+    array<entity> players = []
+    foreach (entity player in GetPlayerArray()) {
+        string name = player.GetPlayerName().tolower()
+        if (name.find(substring) != null) {
+            players.append(player)
+        }
+    }
+
+    return players
 }

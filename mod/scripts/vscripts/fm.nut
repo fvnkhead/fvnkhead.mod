@@ -11,7 +11,6 @@ struct CommandInfo {
 }
 
 struct KickInfo {
-    entity target
     array<entity> voters
     int threshold
 }
@@ -28,8 +27,8 @@ array<string> WELCOMED_PLAYERS = []
 
 float KICK_PERCENTAGE = 0.0
 int KICK_MIN_PLAYERS = 0
-array<KickInfo> VOTEKICKS = []
-array<entity> KICKED_PLAYERS = []
+table<string, KickInfo> KICK_TABLE = {}
+array<string> KICKED_PLAYERS = []
 
 //------------------------------------------------------------------------------
 // init
@@ -66,8 +65,8 @@ void function initKick() {
 }
 
 void function initCommands() {
-    COMMANDS.append(newCommandInfo("!help", CommandHelp, 0, "!help => get help"))
-    COMMANDS.append(newCommandInfo("!kick", CommandKick, 1, "!kick <player> => vote to kick a player"))
+    COMMANDS.append(newCommandInfo("!help", commandHelp, 0, "!help => get help"))
+    COMMANDS.append(newCommandInfo("!kick", commandKick, 1, "!kick <player> => vote to kick a player"))
 
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
 }
@@ -132,7 +131,7 @@ void function OnPlayerRespawnedWelcome(entity player) {
         return
     }
 
-    sendMessage(player, purple(WELCOME))
+    thread sendMessage(player, purple(WELCOME))
     WELCOMED_PLAYERS.append(uid)
 }
 
@@ -146,19 +145,19 @@ void function OnClientDisconnectedWelcome(entity player) {
 //------------------------------------------------------------------------------
 // help
 //------------------------------------------------------------------------------
-bool function CommandHelp(entity player, array<string> args) {
+bool function commandHelp(entity player, array<string> args) {
     string help = "available commands:"
     foreach (CommandInfo c in COMMANDS) {
         help += " " + c.name
     }
-    sendMessage(player, blue(help))
+    thread sendMessage(player, blue(help))
     return true
 }
 
 //------------------------------------------------------------------------------
 // kick
 //------------------------------------------------------------------------------
-bool function CommandKick(entity player, array<string> args) {
+bool function commandKick(entity player, array<string> args) {
     string playerName = args[0]
     array<entity> foundPlayers = findPlayersBySubstring(playerName)
 
@@ -169,11 +168,63 @@ bool function CommandKick(entity player, array<string> args) {
 
     if (foundPlayers.len() > 1) {
         sendMessage(player, red("multiple matches for player '" + playerName + "', be more specific"))
+        return false
     }
 
     entity target = foundPlayers[0]
+    string targetUid = target.GetUID()
+    string targetName = target.GetPlayerName()
+
+    // kick player right away if the voter is an admin
+    if (isAdmin(player)) {
+        kick(target)
+        return true
+    }
+
+    if (GetPlayerArray().len() < KICK_MIN_PLAYERS) {
+        sendMessage(player, red("not enough players for vote kick, at least " + KICK_MIN_PLAYERS + " are required"))
+        return false
+    }
+
+    // ensure kicked player is in KICK_TABLE
+    if (targetUid in KICK_TABLE) {
+        KickInfo kickInfo = KICK_TABLE[targetUid]
+        foreach (entity voter in kickInfo.voters) {
+            if (voter.GetUID() == player.GetUID()) {
+                sendMessage(player, red("you have already voted to kick " + targetName))
+                return false
+            }
+        }
+
+        kickInfo.voters.append(player)
+    } else {
+        KickInfo kickInfo
+        kickInfo.voters = []
+        kickInfo.voters.append(player)
+        kickInfo.threshold = int(GetPlayerArray().len() * KICK_PERCENTAGE)
+        KICK_TABLE[targetUid] <- kickInfo
+    }
+
+    // kick if votes exceed threshold
+    KickInfo kickInfo = KICK_TABLE[targetUid]
+    if (kickInfo.voters.len() >= kickInfo.threshold) {
+        kick(target)
+    } else {
+        int remainingVotes = kickInfo.threshold - kickInfo.voters.len()
+        thread announceMessage(blue(player.GetPlayerName() + " voted to kick " + targetName + ", " + remainingVotes + " more vote(s) required"))
+    }
 
     return true
+}
+
+void function kick(entity player) {
+    string playerUid = player.GetUID()
+    if (playerUid in KICK_TABLE) {
+        delete KICK_TABLE[playerUid]
+    }
+    KICKED_PLAYERS.append(playerUid)
+    //ServerCommand("kick " + player.GetPlayerName())
+    thread announceMessage(blue(player.GetPlayerName() + " has been kicked"))
 }
 
 //------------------------------------------------------------------------------
@@ -192,10 +243,12 @@ string function purple(string s) {
 }
 
 void function sendMessage(entity player, string text) {
+    wait 0.1
     Chat_ServerPrivateMessage(player, text, false)
 }
 
 void function announceMessage(string text) {
+    wait 0.1
     Chat_ServerBroadcast(text)
 }
 
@@ -210,4 +263,8 @@ array<entity> function findPlayersBySubstring(string substring) {
     }
 
     return players
+}
+
+bool function isAdmin(entity player) {
+    return ADMIN_UIDS.contains(player.GetUID())
 }

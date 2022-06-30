@@ -11,26 +11,46 @@ struct Command {
 //------------------------------------------------------------------------------
 // globals
 //------------------------------------------------------------------------------
+array<string> ADMIN_UIDS = []
+
 array<Command> COMMANDS = []
 
 string WELCOME = ""
 array<string> WELCOMED_PLAYERS = []
 
 
+//------------------------------------------------------------------------------
+// init
+//------------------------------------------------------------------------------
 void function fm_Init() {
     #if SERVER
 
+    initAdmins()
+    initWelcome()
+    initCommands()
+
+    #endif
+}
+
+void function initAdmins() {
+    array<string> adminUids = split(GetConVarString("fm_admin_uids"), ",")
+    foreach (string uid in adminUids) {
+        print("admin " + uid)
+        ADMIN_UIDS.append(strip(uid))
+    }
+}
+
+void function initWelcome() {
     WELCOME = GetConVarString("fm_welcome")
     if (WELCOME != "") {
         AddCallback_OnPlayerRespawned(OnPlayerRespawnedWelcome)
         AddCallback_OnClientDisconnected(OnClientDisconnectedWelcome)
     }
+}
 
-    AddCallback_OnReceivedSayTextMessage(ChatCallback)
-
+void function initCommands() {
     COMMANDS.append(newCommand("!help", CommandHelp))
-
-    #endif
+    AddCallback_OnReceivedSayTextMessage(ChatCallback)
 }
 
 //------------------------------------------------------------------------------
@@ -64,6 +84,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 
         if (!commandFound) {
             sendMessage(player, red("unknown command: " + command))
+            messageInfo.shouldBlock = true
         }
     }
 

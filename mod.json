@@ -1,0 +1,41 @@
+{
+    "Name": "fvnkhead.mod",
+    "Description": "fvnkhead's server mod",
+    "Version": "1.0.0",
+    "LoadPriority": 1,
+    "ConVars": [
+        {
+            "Name": "fm_admin_uids",
+            "DefaultValue": "1234,5678,..."
+        },
+        {
+            "Name": "fm_admin_password",
+            "DefaultValue": "1234"
+        },
+        {
+            "Name": "fm_welcome",
+            "DefaultValue": "welcome blah blah blah"
+        },
+        {
+            "Name": "fm_kick_enabled",
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_kick_percentage",
+            "DefaultValue": "0.5"
+        },
+        {
+            "Name": "fm_kick_min_players",
+            "DefaultValue": "5"
+        }
+    ],
+    "Scripts": [
+        {
+            "Path": "fm.gnut",
+            "RunOn": "MP",
+            "ServerCallback": {
+                "After": "fm_Init"
+            }
+        }
+    ]
+}

@@ -1,42 +1,73 @@
 global function fm_Init
 
 //------------------------------------------------------------------------------
+// structs
+//------------------------------------------------------------------------------
+struct Command {
+    string name
+    void functionref(entity, array<string>) fn
+}
+
+//------------------------------------------------------------------------------
 // globals
 //------------------------------------------------------------------------------
-string welcome = ""
-array<string> welcomedPlayers = []
+array<Command> COMMANDS = []
+
+string WELCOME = ""
+array<string> WELCOMED_PLAYERS = []
+
 
 void function fm_Init() {
-    welcome = GetConVarString("fm_welcome")
-    if (welcome != "") {
+    #if SERVER
+
+    WELCOME = GetConVarString("fm_welcome")
+    if (WELCOME != "") {
         AddCallback_OnPlayerRespawned(OnPlayerRespawnedWelcome)
         AddCallback_OnClientDisconnected(OnClientDisconnectedWelcome)
     }
 
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
+
+    COMMANDS.append(newCommand("!help", CommandHelp))
+
+    #endif
 }
 
 //------------------------------------------------------------------------------
-// utils
+// command handling
 //------------------------------------------------------------------------------
-string function red(string s) {
-    return "\x1b[0;31m" + s
+Command function newCommand(string name, void functionref(entity, array<string>) fn) {
+    Command command
+    command.name = name
+    command.fn = fn
+    return command
 }
 
-string function blue(string s) {
-    return "\x1b[0;34m" + s
-}
+ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo) {
+    string message = strip(messageInfo.message)
+    bool isCommand = format("%c", message[0]) == "!"
+    if (isCommand) {
+        entity player = messageInfo.player
 
-string function purple(string s) {
-    return "\x1b[0;35m" + s
-}
+        array<string> args = split(message, " ")
+        string command = args[0]
+        args.remove(0)
 
-void function message(entity player, string text) {
-    Chat_ServerPrivateMessage(player, text, false)
-}
+        bool commandFound = false
+        foreach (Command c in COMMANDS) {
+            if (command == c.name) {
+                wait 0.1
+                c.fn(player, args)
+                commandFound = true
+            }
+        }
 
-void function announce(string text) {
-    Chat_ServerBroadcast(text)
+        if (!commandFound) {
+            sendMessage(player, red("unknown command: " + command))
+        }
+    }
+
+    return messageInfo
 }
 
 //------------------------------------------------------------------------------
@@ -44,40 +75,47 @@ void function announce(string text) {
 //------------------------------------------------------------------------------
 void function OnPlayerRespawnedWelcome(entity player) {
     string uid = player.GetUID()
-    if (welcomedPlayers.contains(uid)) {
+    if (WELCOMED_PLAYERS.contains(uid)) {
         return
     }
 
-    message(player, purple(welcome))
-    welcomedPlayers.append(uid)
+    sendMessage(player, purple(WELCOME))
+    WELCOMED_PLAYERS.append(uid)
 }
 
 void function OnClientDisconnectedWelcome(entity player) {
     string uid = player.GetUID()
-    if (welcomedPlayers.contains(uid)) {
-        welcomedPlayers.remove(welcomedPlayers.find(uid))
+    if (WELCOMED_PLAYERS.contains(uid)) {
+        WELCOMED_PLAYERS.remove(WELCOMED_PLAYERS.find(uid))
     }
 }
 
 //------------------------------------------------------------------------------
-// command handling
+// help
 //------------------------------------------------------------------------------
-ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo) {
-    string message = strip(messageInfo.message)
-    bool isCommand = format("%c", message[0]) == "!"
-    if (isCommand) {
-        announce(blue("got command"))
-        entity player = messageInfo.player
-
-        array<string> args = split(message, " ")
-        args.remove(0)
-
-        handleCommand(player, message, args)
-    }
-
-    return messageInfo
+void function CommandHelp(entity player, array<string> args) {
+    sendMessage(player, blue("help"))
 }
 
-void function handleCommand(entity player, string command, array<string> args) {
-    message(player, "command " + command)
+//------------------------------------------------------------------------------
+// utils
+//------------------------------------------------------------------------------
+string function red(string s) {
+    return "\x1b[1;31m" + s
+}
+
+string function blue(string s) {
+    return "\x1b[1;34m" + s
+}
+
+string function purple(string s) {
+    return "\x1b[1;35m" + s
+}
+
+void function sendMessage(entity player, string text) {
+    Chat_ServerPrivateMessage(player, text, false)
+}
+
+void function announceMessage(string text) {
+    Chat_ServerBroadcast(text)
 }

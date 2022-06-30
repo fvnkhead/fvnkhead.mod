@@ -6,7 +6,7 @@
     "ConVars": [
         {
             "Name": "fm_admin_uids",
-            "DefaultValue": "1234,5678,..."
+            "DefaultValue": "1234,5678"
         },
         {
             "Name": "fm_admin_password",
@@ -31,7 +31,7 @@
     ],
     "Scripts": [
         {
-            "Path": "fm.gnut",
+            "Path": "fm.nut",
             "RunOn": "MP",
             "ServerCallback": {
                 "After": "fm_Init"

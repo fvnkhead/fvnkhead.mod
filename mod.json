@@ -23,6 +23,10 @@
         {
             "Name": "fm_kick_min_players",
             "DefaultValue": "3"
+        },
+        {
+            "Name": "fm_maps",
+            "DefaultValue": "mp_lf_stacks, mp_lf_deck, mp_lf_uma"
         }
     ],
     "Scripts": [

@@ -34,6 +34,8 @@ struct {
     int kickMinPlayers
     table<string, KickInfo> kickTable
     array<string> kickedPlayers
+
+    array<string> maps
 } file
 
 //------------------------------------------------------------------------------
@@ -61,8 +63,16 @@ void function fm_Init() {
     file.kickTable = {}
     file.kickedPlayers = []
 
+    file.maps = []
+    array<string> maps = split(GetConVarString("fm_maps"), ",")
+    foreach (string map in maps) {
+        file.maps.append(strip(map))
+    }
+    AddCallback_GameStateEnter(eGameState.WinnerDetermined, SetNextMap)
+
     file.commands.append(NewCommandInfo("!help", CommandHelp, 0, false, false, "!help => get help"))
     file.commands.append(NewCommandInfo("!kick", CommandKick, 1, false, false, "!kick <full or partial player name> => vote to kick a player"))
+    file.commands.append(NewCommandInfo("!maps", CommandMaps, 0, false, false, "!maps => list available maps"))
     file.commands.append(NewCommandInfo("!auth", CommandAuth, 1, true, true,  "!auth <password> => authenticate yourself as an admin"))
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
 
@@ -270,6 +280,66 @@ bool function CommandAuth(entity player, array<string> args) {
 }
 
 //------------------------------------------------------------------------------
+// maps
+//------------------------------------------------------------------------------
+table<string, string> mapNameTable = {
+    mp_angel_city = "Angel City",
+    mp_black_water_canal = "Black Water Canal",
+    mp_coliseum = "Coliseum",
+    mp_coliseum_column = "Pillars",
+    mp_colony02 = "Colony",
+    mp_complex3 = "Complex",
+    mp_crashsite3 = "Crashsite",
+    mp_drydock = "Drydock",
+    mp_eden = "Eden",
+    mp_forwardbase_kodai = "Forwardbase Kodai",
+    mp_glitch = "Glitch",
+    mp_grave = "Boomtown",
+    mp_homestead = "Homestead",
+    mp_lf_deck = "Deck",
+    mp_lf_meadow = "Meadow",
+    mp_lf_stacks = "Stacks",
+    mp_lf_township = "Township",
+    mp_lf_traffic = "Traffic",
+    mp_lf_uma = "UMA",
+    mp_relic02 = "Relic",
+    mp_rise = "Rise",
+    mp_thaw = "Exoplanet",
+    mp_wargames = "Wargames"
+}
+
+bool function IsValidMap(string map) {
+    return map in mapNameTable
+}
+
+bool function CommandMaps(entity player, array<string> args) {
+    string msg = ""
+    for (int i = 0; i < file.maps.len(); i++) {
+        string map = file.maps[i]
+        string mapName = mapNameTable[map]
+        msg += mapName.tolower()
+        if (i < file.maps.len() - 1) {
+            msg += ", "
+        }
+    }
+
+    thread AsyncSendMessage(player, Blue(msg))
+    return true
+}
+
+void function SetNextMap() {
+    string currentMap = GetMapName()
+    string nextMap
+    if (currentMap == file.maps[file.maps.len() - 1]) {
+        nextMap = file.maps[0]
+    } else {
+        nextMap = file.maps[file.maps.find(currentMap) + 1]
+    }
+
+    GameRules_ChangeMap(nextMap, GameRules_GetGameMode())
+}
+
+//------------------------------------------------------------------------------
 // utils
 //------------------------------------------------------------------------------
 string function Red(string s) {
@@ -277,7 +347,7 @@ string function Red(string s) {
 }
 
 string function Blue(string s) {
-    return "\x1b[1;34m" + s
+    return "\x1b[1;36m" + s
 }
 
 void function SendMessage(entity player, string text) {

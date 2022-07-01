@@ -6,7 +6,7 @@ global function fm_Init
 struct CommandInfo {
     string name
     bool functionref(entity, array<string>) fn
-    int argCount
+    int argCount,
     string usage
 }
 
@@ -18,17 +18,21 @@ struct KickInfo {
 //------------------------------------------------------------------------------
 // globals
 //------------------------------------------------------------------------------
-array<string> ADMIN_UIDS = []
+struct {
+    array<string> adminUids
+    string adminPassword
+    array<string> authenticatedAdmins
 
-array<CommandInfo> COMMANDS = []
+    array<CommandInfo> commands
 
-string WELCOME = ""
-array<string> WELCOMED_PLAYERS = []
+    string welcome
+    array<string> welcomedPlayers
 
-float KICK_PERCENTAGE = 0.0
-int KICK_MIN_PLAYERS = 0
-table<string, KickInfo> KICK_TABLE = {}
-array<string> KICKED_PLAYERS = []
+    float kickPercentage
+    int kickMinPlayers
+    table<string, KickInfo> kickTable
+    array<string> kickedPlayers
+} file
 
 //------------------------------------------------------------------------------
 // init
@@ -36,45 +40,36 @@ array<string> KICKED_PLAYERS = []
 void function fm_Init() {
     #if SERVER
 
-    initAdmins()
-    initWelcome()
-    initKick()
-    initCommands()
-
-    #endif
-}
-
-void function initAdmins() {
     array<string> adminUids = split(GetConVarString("fm_admin_uids"), ",")
     foreach (string uid in adminUids) {
-        ADMIN_UIDS.append(strip(uid))
+        file.adminUids.append(strip(uid))
     }
-}
+    file.adminPassword = GetConVarString("fm_admin_password")
+    file.authenticatedAdmins = []
 
-void function initWelcome() {
-    WELCOME = GetConVarString("fm_welcome")
-    if (WELCOME != "") {
+    file.welcome = GetConVarString("fm_welcome")
+    if (file.welcome != "") {
         AddCallback_OnPlayerRespawned(OnPlayerRespawnedWelcome)
         AddCallback_OnClientDisconnected(OnClientDisconnectedWelcome)
     }
-}
+    file.welcomedPlayers = []
 
-void function initKick() {
-    KICK_PERCENTAGE = GetConVarFloat("fm_kick_percentage")
-    KICK_MIN_PLAYERS = GetConVarInt("fm_kick_min_players")
-}
+    file.kickPercentage = GetConVarFloat("fm_kick_percentage")
+    file.kickMinPlayers = GetConVarInt("fm_kick_min_players")
+    file.kickTable = {}
+    file.kickedPlayers = []
 
-void function initCommands() {
-    COMMANDS.append(newCommandInfo("!help", commandHelp, 0, "!help => get help"))
-    COMMANDS.append(newCommandInfo("!kick", commandKick, 1, "!kick <player> => vote to kick a player"))
-
+    file.commands.append(NewCommandInfo("!help", CommandHelp, 0, "!help => get help"))
+    file.commands.append(NewCommandInfo("!kick", CommandKick, 1, "!kick <full or partial player name> => vote to kick a player"))
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
+
+    #endif
 }
 
 //------------------------------------------------------------------------------
 // command handling
 //------------------------------------------------------------------------------
-CommandInfo function newCommandInfo(string name, bool functionref(entity, array<string>) fn, int argCount, string usage) {
+CommandInfo function NewCommandInfo(string name, bool functionref(entity, array<string>) fn, int argCount, string usage) {
     CommandInfo commandInfo
     commandInfo.name = name
     commandInfo.fn = fn
@@ -95,7 +90,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 
         bool commandFound = false
         bool commandSuccess = false
-        foreach (CommandInfo c in COMMANDS) {
+        foreach (CommandInfo c in file.commands) {
             if (command != c.name) {
                 continue
             }
@@ -103,7 +98,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
             commandFound = true
 
             if (args.len() != c.argCount) {
-                sendMessage(player, red("usage: " + c.usage))
+                SendMessage(player, Red("usage: " + c.usage))
                 commandSuccess = false
                 break
             }
@@ -112,7 +107,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
         }
 
         if (!commandFound) {
-            sendMessage(player, red("unknown command: " + command))
+            SendMessage(player, Red("unknown command: " + command))
             messageInfo.shouldBlock = true
         } else if (!commandSuccess) {
             messageInfo.shouldBlock = true
@@ -127,47 +122,47 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 //------------------------------------------------------------------------------
 void function OnPlayerRespawnedWelcome(entity player) {
     string uid = player.GetUID()
-    if (WELCOMED_PLAYERS.contains(uid)) {
+    if (file.welcomedPlayers.contains(uid)) {
         return
     }
 
-    thread sendMessage(player, purple(WELCOME))
-    WELCOMED_PLAYERS.append(uid)
+    thread SendMessage(player, Blue(file.welcome))
+    file.welcomedPlayers.append(uid)
 }
 
 void function OnClientDisconnectedWelcome(entity player) {
     string uid = player.GetUID()
-    if (WELCOMED_PLAYERS.contains(uid)) {
-        WELCOMED_PLAYERS.remove(WELCOMED_PLAYERS.find(uid))
+    if (file.welcomedPlayers.contains(uid)) {
+        file.welcomedPlayers.remove(file.welcomedPlayers.find(uid))
     }
 }
 
 //------------------------------------------------------------------------------
 // help
 //------------------------------------------------------------------------------
-bool function commandHelp(entity player, array<string> args) {
+bool function CommandHelp(entity player, array<string> args) {
     string help = "available commands:"
-    foreach (CommandInfo c in COMMANDS) {
+    foreach (CommandInfo c in file.commands) {
         help += " " + c.name
     }
-    thread sendMessage(player, blue(help))
+    thread SendMessage(player, Blue(help))
     return true
 }
 
 //------------------------------------------------------------------------------
 // kick
 //------------------------------------------------------------------------------
-bool function commandKick(entity player, array<string> args) {
+bool function CommandKick(entity player, array<string> args) {
     string playerName = args[0]
-    array<entity> foundPlayers = findPlayersBySubstring(playerName)
+    array<entity> foundPlayers = FindPlayersBySubstring(playerName)
 
     if (foundPlayers.len() == 0) {
-        sendMessage(player, red("player '" + playerName + "' not found"))
+        SendMessage(player, Red("player '" + playerName + "' not found"))
         return false
     }
 
     if (foundPlayers.len() > 1) {
-        sendMessage(player, red("multiple matches for player '" + playerName + "', be more specific"))
+        SendMessage(player, Red("multiple matches for player '" + playerName + "', be more specific"))
         return false
     }
 
@@ -176,22 +171,22 @@ bool function commandKick(entity player, array<string> args) {
     string targetName = target.GetPlayerName()
 
     // kick player right away if the voter is an admin
-    if (isAdmin(player)) {
-        kick(target)
+    if (IsAdmin(player)) {
+        KickPlayer(target)
         return true
     }
 
-    if (GetPlayerArray().len() < KICK_MIN_PLAYERS) {
-        sendMessage(player, red("not enough players for vote kick, at least " + KICK_MIN_PLAYERS + " are required"))
+    if (GetPlayerArray().len() < file.kickMinPlayers) {
+        SendMessage(player, Red("not enough players for vote kick, at least " + file.kickMinPlayers + " are required"))
         return false
     }
 
-    // ensure kicked player is in KICK_TABLE
-    if (targetUid in KICK_TABLE) {
-        KickInfo kickInfo = KICK_TABLE[targetUid]
+    // ensure kicked player is in file.kickTable
+    if (targetUid in file.kickTable) {
+        KickInfo kickInfo = file.kickTable[targetUid]
         foreach (entity voter in kickInfo.voters) {
             if (voter.GetUID() == player.GetUID()) {
-                sendMessage(player, red("you have already voted to kick " + targetName))
+                SendMessage(player, Red("you have already voted to kick " + targetName))
                 return false
             }
         }
@@ -200,58 +195,54 @@ bool function commandKick(entity player, array<string> args) {
         KickInfo kickInfo
         kickInfo.voters = []
         kickInfo.voters.append(player)
-        kickInfo.threshold = int(GetPlayerArray().len() * KICK_PERCENTAGE)
-        KICK_TABLE[targetUid] <- kickInfo
+        kickInfo.threshold = int(GetPlayerArray().len() * file.kickPercentage)
+        file.kickTable[targetUid] <- kickInfo
     }
 
     // kick if votes exceed threshold
-    KickInfo kickInfo = KICK_TABLE[targetUid]
+    KickInfo kickInfo = file.kickTable[targetUid]
     if (kickInfo.voters.len() >= kickInfo.threshold) {
-        kick(target)
+        KickPlayer(target)
     } else {
         int remainingVotes = kickInfo.threshold - kickInfo.voters.len()
-        thread announceMessage(blue(player.GetPlayerName() + " voted to kick " + targetName + ", " + remainingVotes + " more vote(s) required"))
+        thread AnnounceMessage(Blue(player.GetPlayerName() + " voted to kick " + targetName + ", " + remainingVotes + " more vote(s) required"))
     }
 
     return true
 }
 
-void function kick(entity player) {
+void function KickPlayer(entity player) {
     string playerUid = player.GetUID()
-    if (playerUid in KICK_TABLE) {
-        delete KICK_TABLE[playerUid]
+    if (playerUid in file.kickTable) {
+        delete file.kickTable[playerUid]
     }
-    KICKED_PLAYERS.append(playerUid)
-    //ServerCommand("kick " + player.GetPlayerName())
-    thread announceMessage(blue(player.GetPlayerName() + " has been kicked"))
+    file.kickedPlayers.append(playerUid)
+    ServerCommand("kick " + player.GetPlayerName())
+    thread AnnounceMessage(Blue(player.GetPlayerName() + " has been kicked"))
 }
 
 //------------------------------------------------------------------------------
 // utils
 //------------------------------------------------------------------------------
-string function red(string s) {
+string function Red(string s) {
     return "\x1b[1;31m" + s
 }
 
-string function blue(string s) {
+string function Blue(string s) {
     return "\x1b[1;34m" + s
 }
 
-string function purple(string s) {
-    return "\x1b[1;35m" + s
-}
-
-void function sendMessage(entity player, string text) {
+void function SendMessage(entity player, string text) {
     wait 0.1
     Chat_ServerPrivateMessage(player, text, false)
 }
 
-void function announceMessage(string text) {
+void function AnnounceMessage(string text) {
     wait 0.1
     Chat_ServerBroadcast(text)
 }
 
-array<entity> function findPlayersBySubstring(string substring) {
+array<entity> function FindPlayersBySubstring(string substring) {
     substring = substring.tolower()
     array<entity> players = []
     foreach (entity player in GetPlayerArray()) {
@@ -264,6 +255,6 @@ array<entity> function findPlayersBySubstring(string substring) {
     return players
 }
 
-bool function isAdmin(entity player) {
-    return ADMIN_UIDS.contains(player.GetUID())
+bool function IsAdmin(entity player) {
+    return file.adminUids.contains(player.GetUID())
 }

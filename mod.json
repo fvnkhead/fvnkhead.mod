@@ -6,7 +6,7 @@
     "ConVars": [
         {
             "Name": "fm_admin_uids",
-            "DefaultValue": "2441795736,1234,..."
+            "DefaultValue": "2441795736,999"
         },
         {
             "Name": "fm_admin_password",

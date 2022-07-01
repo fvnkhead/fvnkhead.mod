@@ -7,6 +7,8 @@ struct CommandInfo {
     string name
     bool functionref(entity, array<string>) fn
     int argCount,
+    bool isSilent,
+    bool isAdmin,
     string usage
 }
 
@@ -59,8 +61,9 @@ void function fm_Init() {
     file.kickTable = {}
     file.kickedPlayers = []
 
-    file.commands.append(NewCommandInfo("!help", CommandHelp, 0, "!help => get help"))
-    file.commands.append(NewCommandInfo("!kick", CommandKick, 1, "!kick <full or partial player name> => vote to kick a player"))
+    file.commands.append(NewCommandInfo("!help", CommandHelp, 0, false, false, "!help => get help"))
+    file.commands.append(NewCommandInfo("!kick", CommandKick, 1, false, false, "!kick <full or partial player name> => vote to kick a player"))
+    file.commands.append(NewCommandInfo("!auth", CommandAuth, 1, true, true,  "!auth <password> => authenticate yourself as an admin"))
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
 
     #endif
@@ -69,49 +72,65 @@ void function fm_Init() {
 //------------------------------------------------------------------------------
 // command handling
 //------------------------------------------------------------------------------
-CommandInfo function NewCommandInfo(string name, bool functionref(entity, array<string>) fn, int argCount, string usage) {
+CommandInfo function NewCommandInfo(string name, bool functionref(entity, array<string>) fn, int argCount, bool isSilent, bool isAdmin, string usage) {
     CommandInfo commandInfo
     commandInfo.name = name
     commandInfo.fn = fn
     commandInfo.argCount = argCount
+    commandInfo.isSilent = isSilent
+    commandInfo.isAdmin = isAdmin
     commandInfo.usage = usage
     return commandInfo
 }
 
 ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo) {
+    if (IsLobby()) {
+        return messageInfo
+    }
+
+    entity player = messageInfo.player
     string message = strip(messageInfo.message)
     bool isCommand = format("%c", message[0]) == "!"
-    if (isCommand && !IsLobby()) {
-        entity player = messageInfo.player
-
-        array<string> args = split(message, " ")
-        string command = args[0]
-        args.remove(0)
-
-        bool commandFound = false
-        bool commandSuccess = false
-        foreach (CommandInfo c in file.commands) {
-            if (command != c.name) {
-                continue
-            }
-
-            commandFound = true
-
-            if (args.len() != c.argCount) {
-                SendMessage(player, Red("usage: " + c.usage))
-                commandSuccess = false
-                break
-            }
-
-            commandSuccess = c.fn(player, args)
-        }
-
-        if (!commandFound) {
-            SendMessage(player, Red("unknown command: " + command))
-            messageInfo.shouldBlock = true
-        } else if (!commandSuccess) {
+    if (!isCommand) {
+        if (IsAdmin(player) && message.tolower().find(file.adminPassword.tolower())) {
+            SendMessage(player, Red("learn to type, mewn"))
             messageInfo.shouldBlock = true
         }
+        return messageInfo
+    }
+
+    array<string> args = split(message, " ")
+    string command = args[0]
+    args.remove(0)
+
+    bool commandFound = false
+    bool commandSuccess = false
+    foreach (CommandInfo c in file.commands) {
+        if (command != c.name) {
+            continue
+        }
+
+        if (c.isAdmin && !IsAdmin(player)) {
+            break
+        }
+
+        commandFound = true
+        messageInfo.shouldBlock = c.isSilent
+
+        if (args.len() != c.argCount) {
+            SendMessage(player, Red("usage: " + c.usage))
+            commandSuccess = false
+            break
+        }
+
+        commandSuccess = c.fn(player, args)
+    }
+
+    if (!commandFound) {
+        SendMessage(player, Red("unknown command: " + command))
+        messageInfo.shouldBlock = true
+    } else if (!commandSuccess) {
+        messageInfo.shouldBlock = true
     }
 
     return messageInfo
@@ -126,7 +145,12 @@ void function OnPlayerRespawnedWelcome(entity player) {
         return
     }
 
-    thread SendMessage(player, Blue(file.welcome))
+    SendMessage(player, Blue(file.welcome))
+    if (IsAdmin(player)) {
+        string additional = "it looks like you're an admin, use !auth <password> to gain special powers"
+        SendMessage(player, Blue(additional))
+    }
+
     file.welcomedPlayers.append(uid)
 }
 
@@ -143,9 +167,12 @@ void function OnClientDisconnectedWelcome(entity player) {
 bool function CommandHelp(entity player, array<string> args) {
     string help = "available commands:"
     foreach (CommandInfo c in file.commands) {
+        if (c.isAdmin && !IsAdmin(player)) {
+            continue
+        }
         help += " " + c.name
     }
-    thread SendMessage(player, Blue(help))
+    thread AsyncSendMessage(player, Blue(help))
     return true
 }
 
@@ -171,7 +198,7 @@ bool function CommandKick(entity player, array<string> args) {
     string targetName = target.GetPlayerName()
 
     // kick player right away if the voter is an admin
-    if (IsAdmin(player)) {
+    if (IsAuthenticatedAdmin(player)) {
         KickPlayer(target)
         return true
     }
@@ -205,7 +232,7 @@ bool function CommandKick(entity player, array<string> args) {
         KickPlayer(target)
     } else {
         int remainingVotes = kickInfo.threshold - kickInfo.voters.len()
-        thread AnnounceMessage(Blue(player.GetPlayerName() + " voted to kick " + targetName + ", " + remainingVotes + " more vote(s) required"))
+        thread AsyncAnnounceMessage(Blue(player.GetPlayerName() + " voted to kick " + targetName + ", " + remainingVotes + " more vote(s) required"))
     }
 
     return true
@@ -218,7 +245,28 @@ void function KickPlayer(entity player) {
     }
     file.kickedPlayers.append(playerUid)
     ServerCommand("kick " + player.GetPlayerName())
-    thread AnnounceMessage(Blue(player.GetPlayerName() + " has been kicked"))
+    thread AsyncAnnounceMessage(Blue(player.GetPlayerName() + " has been kicked"))
+}
+
+//------------------------------------------------------------------------------
+// auth
+//------------------------------------------------------------------------------
+bool function CommandAuth(entity player, array<string> args) {
+    if (IsAuthenticatedAdmin(player)) {
+        SendMessage(player, Blue("you are already authenticated"))
+        return false
+    }
+
+    string password = args[0]
+    if (password != file.adminPassword) {
+        SendMessage(player, Red("wrong password"))
+        return false
+    }
+
+    file.authenticatedAdmins.append(player.GetUID())
+    SendMessage(player, Blue("hello, admin!"))
+
+    return true
 }
 
 //------------------------------------------------------------------------------
@@ -233,11 +281,19 @@ string function Blue(string s) {
 }
 
 void function SendMessage(entity player, string text) {
+    Chat_ServerPrivateMessage(player, text, false)
+}
+
+void function AsyncSendMessage(entity player, string text) {
     wait 0.1
     Chat_ServerPrivateMessage(player, text, false)
 }
 
 void function AnnounceMessage(string text) {
+    Chat_ServerBroadcast(text)
+}
+
+void function AsyncAnnounceMessage(string text) {
     wait 0.1
     Chat_ServerBroadcast(text)
 }
@@ -257,4 +313,8 @@ array<entity> function FindPlayersBySubstring(string substring) {
 
 bool function IsAdmin(entity player) {
     return file.adminUids.contains(player.GetUID())
+}
+
+bool function IsAuthenticatedAdmin(entity player) {
+    return IsAdmin(player) && file.authenticatedAdmins.contains(player.GetUID())
 }

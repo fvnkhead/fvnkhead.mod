@@ -107,7 +107,8 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     string message = strip(messageInfo.message)
     bool isCommand = format("%c", message[0]) == "!"
     if (!isCommand) {
-        if (IsAdmin(player) && message.tolower().find(file.adminPassword.tolower())) {
+        // prevent dumb admins from leaking the admin password
+        if (IsAdmin(player) && message.tolower().find(file.adminPassword.tolower()) != null) {
             SendMessage(player, Red("learn to type, mewn"))
             messageInfo.shouldBlock = true
         }
@@ -211,6 +212,11 @@ bool function CommandKick(entity player, array<string> args) {
     entity target = foundPlayers[0]
     string targetUid = target.GetUID()
     string targetName = target.GetPlayerName()
+
+    if (player == target) {
+        SendMessage(player, Red("you cannot kick yourself"))
+        return false
+    }
 
     // admins are safe from kicking (for now)
     if (IsAdmin(target)) {

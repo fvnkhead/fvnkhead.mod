@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// shamelessly stolen code from takyon
+// disclaimer: shamelessly stolen code from takyon
 //------------------------------------------------------------------------------
 
 global function fm_Init
@@ -21,6 +21,11 @@ struct KickInfo {
     int threshold
 }
 
+struct PlayerScore {
+    entity player
+    float score
+}
+
 //------------------------------------------------------------------------------
 // globals
 //------------------------------------------------------------------------------
@@ -34,12 +39,19 @@ struct {
     string welcome
     array<string> welcomedPlayers
 
+    string rulesOk
+    string rulesNotOk
+
     float kickPercentage
     int kickMinPlayers
     table<string, KickInfo> kickTable
     array<string> kickedPlayers
 
     array<string> maps
+
+    float balancePercentage
+    int balanceThreshold
+    array<string> balanceVotedPlayers
 } file
 
 //------------------------------------------------------------------------------
@@ -48,6 +60,7 @@ struct {
 void function fm_Init() {
     #if SERVER
 
+    // admins
     array<string> adminUids = split(GetConVarString("fm_admin_uids"), ",")
     foreach (string uid in adminUids) {
         file.adminUids.append(strip(uid))
@@ -55,6 +68,7 @@ void function fm_Init() {
     file.adminPassword = GetConVarString("fm_admin_password")
     file.authenticatedAdmins = []
 
+    // welcome
     file.welcome = GetConVarString("fm_welcome")
     if (file.welcome != "") {
         AddCallback_OnPlayerRespawned(OnPlayerRespawnedWelcome)
@@ -62,11 +76,17 @@ void function fm_Init() {
     }
     file.welcomedPlayers = []
 
+    // rules
+    file.rulesOk = GetConVarString("fm_rules_ok")
+    file.rulesNotOk = GetConVarString("fm_rules_not_ok")
+
+    // kick
     file.kickPercentage = GetConVarFloat("fm_kick_percentage")
     file.kickMinPlayers = GetConVarInt("fm_kick_min_players")
     file.kickTable = {}
     file.kickedPlayers = []
 
+    // maps
     file.maps = []
     array<string> maps = split(GetConVarString("fm_maps"), ",")
     foreach (string map in maps) {
@@ -74,10 +94,20 @@ void function fm_Init() {
     }
     AddCallback_GameStateEnter(eGameState.Postmatch, PostmatchNextMap)
 
+    // balance
+    file.balancePercentage = GetConVarFloat("fm_balance_percentage")
+    file.balanceThreshold = 0
+    file.balanceVotedPlayers = []
+
+    // commands
     file.commands.append(NewCommandInfo("!help", CommandHelp, 0, false, false, "!help => get help"))
+    file.commands.append(NewCommandInfo("!rules", CommandRules, 0, false, false, "!rules => show rules"))
+    file.commands.append(NewCommandInfo("!auth", CommandAuth, 1, true, true,  "!auth <password> => authenticate yourself as an admin"))
     file.commands.append(NewCommandInfo("!kick", CommandKick, 1, false, false, "!kick <full or partial player name> => vote to kick a player"))
     file.commands.append(NewCommandInfo("!maps", CommandMaps, 0, false, false, "!maps => list available maps"))
-    file.commands.append(NewCommandInfo("!auth", CommandAuth, 1, true, true,  "!auth <password> => authenticate yourself as an admin"))
+    if (!IsFFAGame()) {
+        file.commands.append(NewCommandInfo("!balance", CommandBalance, 0, false, false, "!balance => vote to balance teams"))
+    }
 
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
 
@@ -116,7 +146,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     }
 
     array<string> args = split(message, " ")
-    string command = args[0]
+    string command = args[0].tolower()
     args.remove(0)
 
     bool commandFound = false
@@ -162,11 +192,6 @@ void function OnPlayerRespawnedWelcome(entity player) {
     }
 
     SendMessage(player, Blue(file.welcome))
-    if (IsAdmin(player)) {
-        string additional = "it looks like you're an admin, use !auth <password> to gain special powers"
-        SendMessage(player, Blue(additional))
-    }
-
     file.welcomedPlayers.append(uid)
 }
 
@@ -189,6 +214,36 @@ bool function CommandHelp(entity player, array<string> args) {
         help += " " + c.name
     }
     thread AsyncSendMessage(player, Blue(help))
+    return true
+}
+
+//------------------------------------------------------------------------------
+// rules
+//------------------------------------------------------------------------------
+bool function CommandRules(entity player, array<string> args) {
+    thread AsyncSendMessage(player, Green("ok = ") + Blue(file.rulesOk))
+    thread AsyncSendMessage(player, Red("not ok = ") + Blue(file.rulesNotOk))
+    return true
+}
+
+//------------------------------------------------------------------------------
+// auth
+//------------------------------------------------------------------------------
+bool function CommandAuth(entity player, array<string> args) {
+    if (IsAuthenticatedAdmin(player)) {
+        SendMessage(player, Blue("you are already authenticated"))
+        return false
+    }
+
+    string password = args[0]
+    if (password != file.adminPassword) {
+        SendMessage(player, Red("wrong password"))
+        return false
+    }
+
+    file.authenticatedAdmins.append(player.GetUID())
+    SendMessage(player, Blue("hello, admin!"))
+
     return true
 }
 
@@ -276,27 +331,6 @@ void function KickPlayer(entity player) {
 }
 
 //------------------------------------------------------------------------------
-// auth
-//------------------------------------------------------------------------------
-bool function CommandAuth(entity player, array<string> args) {
-    if (IsAuthenticatedAdmin(player)) {
-        SendMessage(player, Blue("you are already authenticated"))
-        return false
-    }
-
-    string password = args[0]
-    if (password != file.adminPassword) {
-        SendMessage(player, Red("wrong password"))
-        return false
-    }
-
-    file.authenticatedAdmins.append(player.GetUID())
-    SendMessage(player, Blue("hello, admin!"))
-
-    return true
-}
-
-//------------------------------------------------------------------------------
 // maps
 //------------------------------------------------------------------------------
 table<string, string> mapNameTable = {
@@ -363,10 +397,83 @@ void function SetNextMap() {
 }
 
 //------------------------------------------------------------------------------
+// balance
+//------------------------------------------------------------------------------
+bool function CommandBalance(entity player, array<string> args) {
+    string playerUid = player.GetUID()
+
+    if (IsAuthenticatedAdmin(player)) {
+        DoBalance()
+        return true
+    }
+
+    if (file.balanceVotedPlayers.contains(playerUid)) {
+        SendMessage(player, Red("you have already voted for balance"))
+        return false
+    }
+
+    if (file.balanceVotedPlayers.len() == 0) {
+        file.balanceThreshold = int(GetPlayerArray().len() * file.balancePercentage)
+    }
+
+    file.balanceVotedPlayers.append(playerUid)
+    if (file.balanceVotedPlayers.len() >= file.balanceThreshold) {
+        DoBalance()
+    } else {
+        int remainingVotes = file.balanceThreshold - file.balanceVotedPlayers.len()
+        thread AsyncAnnounceMessage(Blue(player.GetPlayerName() + " has voted for team balance, " + remainingVotes + " more vote(s) required"))
+    }
+
+    return true
+}
+
+void function DoBalance() {
+    array<PlayerScore> scores
+    foreach (entity player in GetPlayerArray()) {
+        PlayerScore score
+        score.player = player
+        int kills = player.GetPlayerGameStat(PGS_KILLS)
+        int deaths = player.GetPlayerGameStat(PGS_DEATHS)
+        if (deaths == 0) {
+            deaths = 1
+        }
+
+        score.score = float(kills) / float(deaths)
+        scores.append(score)
+    }
+
+    scores.sort(PlayerScoreSort)
+    
+    for (int i = 0; i < GetPlayerArray().len(); i++) {
+        if (IsEven(i)) {
+            SetTeam(scores[i].player, TEAM_IMC)
+        } else {
+            SetTeam(scores[i].player, TEAM_MILITIA)
+        }
+    }
+
+    file.balanceVotedPlayers = []
+
+    thread AsyncAnnounceMessage(Blue("teams have been balanced by k/d"))
+}
+
+int function PlayerScoreSort(PlayerScore a, PlayerScore b) {
+    if (a.score == b.score) {
+        return 0
+    }
+
+    return a.score < b.score ? -1 : 1
+}
+
+//------------------------------------------------------------------------------
 // utils
 //------------------------------------------------------------------------------
 string function Red(string s) {
     return "\x1b[1;31m" + s
+}
+
+string function Green(string s) {
+    return "\x1b[1;32m" + s
 }
 
 string function Blue(string s) {

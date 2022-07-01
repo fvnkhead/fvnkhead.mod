@@ -1,3 +1,7 @@
+//------------------------------------------------------------------------------
+// shamelessly stolen code from takyon
+//------------------------------------------------------------------------------
+
 global function fm_Init
 
 //------------------------------------------------------------------------------
@@ -68,12 +72,13 @@ void function fm_Init() {
     foreach (string map in maps) {
         file.maps.append(strip(map))
     }
-    AddCallback_GameStateEnter(eGameState.WinnerDetermined, SetNextMap)
+    AddCallback_GameStateEnter(eGameState.Postmatch, PostmatchNextMap)
 
     file.commands.append(NewCommandInfo("!help", CommandHelp, 0, false, false, "!help => get help"))
     file.commands.append(NewCommandInfo("!kick", CommandKick, 1, false, false, "!kick <full or partial player name> => vote to kick a player"))
     file.commands.append(NewCommandInfo("!maps", CommandMaps, 0, false, false, "!maps => list available maps"))
     file.commands.append(NewCommandInfo("!auth", CommandAuth, 1, true, true,  "!auth <password> => authenticate yourself as an admin"))
+
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
 
     #endif
@@ -207,6 +212,12 @@ bool function CommandKick(entity player, array<string> args) {
     string targetUid = target.GetUID()
     string targetName = target.GetPlayerName()
 
+    // admins are safe from kicking (for now)
+    if (IsAdmin(target)) {
+        SendMessage(player, Red("you cannot kick an admin"))
+        return false
+    }
+
     // kick player right away if the voter is an admin
     if (IsAuthenticatedAdmin(player)) {
         KickPlayer(target)
@@ -327,7 +338,13 @@ bool function CommandMaps(entity player, array<string> args) {
     return true
 }
 
+void function PostmatchNextMap() {
+    thread SetNextMap()
+}
+
 void function SetNextMap() {
+    wait GAME_POSTMATCH_LENGTH - 1
+
     string currentMap = GetMapName()
     string nextMap
     if (currentMap == file.maps[file.maps.len() - 1]) {

@@ -9,12 +9,26 @@
             "DefaultValue": "xxx2441795736,999"
         },
         {
+            "Name": "fm_admin_auth_enabled",
+            "DefaultValue": "1"
+        },
+        {
             "Name": "fm_admin_password",
             "DefaultValue": "1234"
+        },
+
+        {
+            "Name": "fm_welcome_enabled",
+            "DefaultValue": "1"
         },
         {
             "Name": "fm_welcome",
             "DefaultValue": "welcome! see !help for available commands, and !rules for rules"
+        },
+
+        {
+            "Name": "fm_rules_enabled",
+            "DefaultValue": "1"
         },
         {
             "Name": "fm_rules_ok",
@@ -24,6 +38,11 @@
             "Name": "fm_rules_not_ok",
             "DefaultValue": "malicious speech, cheating, competitive macros"
         },
+
+        {
+            "Name": "fm_kick_enabled",
+            "DefaultValue": "1"
+        },
         {
             "Name": "fm_kick_percentage",
             "DefaultValue": "0.5"
@@ -32,13 +51,23 @@
             "Name": "fm_kick_min_players",
             "DefaultValue": "6"
         },
+
+        {
+            "Name": "fm_maps_enabled",
+            "DefaultValue": "1"
+        },
         {
             "Name": "fm_maps",
             "DefaultValue": "mp_lf_stacks, mp_lf_deck, mp_lf_uma"
         },
+
+        {
+            "Name": "fm_balance_enabled",
+            "DefaultValue": "1"
+        },
         {
             "Name": "fm_balance_percentage",
-            "DefaultValue": "0.3"
+            "DefaultValue": "0.33"
         }
     ],
     "Scripts": [

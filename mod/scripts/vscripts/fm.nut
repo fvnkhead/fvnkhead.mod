@@ -31,24 +31,30 @@ struct PlayerScore {
 //------------------------------------------------------------------------------
 struct {
     array<string> adminUids
+    bool adminAuthEnabled
     string adminPassword
     array<string> authenticatedAdmins
 
     array<CommandInfo> commands
 
+    bool welcomeEnabled
     string welcome
     array<string> welcomedPlayers
 
+    bool rulesEnabled
     string rulesOk
     string rulesNotOk
 
+    bool kickEnabled
     float kickPercentage
     int kickMinPlayers
     table<string, KickInfo> kickTable
     array<string> kickedPlayers
-
+    
+    bool mapsEnabled
     array<string> maps
 
+    bool balanceEnabled
     float balancePercentage
     int balanceThreshold
     array<string> balanceVotedPlayers
@@ -65,28 +71,33 @@ void function fm_Init() {
     foreach (string uid in adminUids) {
         file.adminUids.append(strip(uid))
     }
+    file.adminAuthEnabled = GetConVarBool("fm_admin_auth_enabled")
     file.adminPassword = GetConVarString("fm_admin_password")
     file.authenticatedAdmins = []
 
     // welcome
+    file.welcomeEnabled = GetConVarBool("fm_welcome_enabled")
     file.welcome = GetConVarString("fm_welcome")
-    if (file.welcome != "") {
+    if (file.welcomeEnabled) {
         AddCallback_OnPlayerRespawned(OnPlayerRespawnedWelcome)
         AddCallback_OnClientDisconnected(OnClientDisconnectedWelcome)
     }
     file.welcomedPlayers = []
 
     // rules
+    file.rulesEnabled = GetConVarBool("fm_rules_enabled")
     file.rulesOk = GetConVarString("fm_rules_ok")
     file.rulesNotOk = GetConVarString("fm_rules_not_ok")
 
     // kick
+    file.kickEnabled = GetConVarBool("fm_kick_enabled")
     file.kickPercentage = GetConVarFloat("fm_kick_percentage")
     file.kickMinPlayers = GetConVarInt("fm_kick_min_players")
     file.kickTable = {}
     file.kickedPlayers = []
 
     // maps
+    file.mapsEnabled = GetConVarBool("fm_maps_enabled")
     file.maps = []
     array<string> maps = split(GetConVarString("fm_maps"), ",")
     foreach (string map in maps) {
@@ -95,17 +106,30 @@ void function fm_Init() {
     AddCallback_GameStateEnter(eGameState.Postmatch, PostmatchNextMap)
 
     // balance
+    file.balanceEnabled = GetConVarBool("fm_balance_enabled")
     file.balancePercentage = GetConVarFloat("fm_balance_percentage")
     file.balanceThreshold = 0
     file.balanceVotedPlayers = []
 
     // commands
     file.commands.append(NewCommandInfo("!help", CommandHelp, 0, false, false, "!help => get help"))
-    file.commands.append(NewCommandInfo("!rules", CommandRules, 0, false, false, "!rules => show rules"))
-    file.commands.append(NewCommandInfo("!auth", CommandAuth, 1, true, true,  "!auth <password> => authenticate yourself as an admin"))
-    file.commands.append(NewCommandInfo("!kick", CommandKick, 1, false, false, "!kick <full or partial player name> => vote to kick a player"))
-    file.commands.append(NewCommandInfo("!maps", CommandMaps, 0, false, false, "!maps => list available maps"))
-    if (!IsFFAGame()) {
+    if (file.rulesEnabled) {
+        file.commands.append(NewCommandInfo("!rules", CommandRules, 0, false, false, "!rules => show rules"))
+    }
+
+    if (file.adminAuthEnabled) {
+        file.commands.append(NewCommandInfo("!auth", CommandAuth, 1, true, true,  "!auth <password> => authenticate yourself as an admin"))
+    }
+
+    if (file.kickEnabled) {
+        file.commands.append(NewCommandInfo("!kick", CommandKick, 1, false, false, "!kick <full or partial player name> => vote to kick a player"))
+    }
+
+    if (file.mapsEnabled && file.maps.len() > 1) {
+        file.commands.append(NewCommandInfo("!maps", CommandMaps, 0, false, false, "!maps => list available maps"))
+    }
+
+    if (file.balanceEnabled && !IsFFAGame()) {
         file.commands.append(NewCommandInfo("!balance", CommandBalance, 0, false, false, "!balance => vote to balance teams"))
     }
 
@@ -137,8 +161,8 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     string message = strip(messageInfo.message)
     bool isCommand = format("%c", message[0]) == "!"
     if (!isCommand) {
-        // prevent dumb admins from leaking the admin password
-        if (IsAdmin(player) && message.tolower().find(file.adminPassword.tolower()) != null) {
+        // prevent mewn from leaking the admin password
+        if (file.adminAuthEnabled && IsAdmin(player) && message.tolower().find(file.adminPassword.tolower()) != null) {
             SendMessage(player, Red("learn to type, mewn"))
             messageInfo.shouldBlock = true
         }
@@ -146,7 +170,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     }
 
     array<string> args = split(message, " ")
-    string command = args[0].tolower()
+    string command = args[0]
     args.remove(0)
 
     bool commandFound = false
@@ -286,6 +310,7 @@ bool function CommandKick(entity player, array<string> args) {
     }
 
     if (GetPlayerArray().len() < file.kickMinPlayers) {
+        // TODO: store into kicktable anyway?
         SendMessage(player, Red("not enough players for vote kick, at least " + file.kickMinPlayers + " are required"))
         return false
     }
@@ -325,7 +350,7 @@ void function KickPlayer(entity player) {
     if (playerUid in file.kickTable) {
         delete file.kickTable[playerUid]
     }
-    file.kickedPlayers.append(playerUid)
+    file.kickedPlayers.append(playerUid) // TODO: ensure kicked players cant rejoin during match
     ServerCommand("kick " + player.GetPlayerName())
     thread AsyncAnnounceMessage(Blue(player.GetPlayerName() + " has been kicked"))
 }
@@ -516,5 +541,9 @@ bool function IsAdmin(entity player) {
 }
 
 bool function IsAuthenticatedAdmin(entity player) {
-    return IsAdmin(player) && file.authenticatedAdmins.contains(player.GetUID())
+    if (file.adminAuthEnabled) {
+        return IsAdmin(player) && file.authenticatedAdmins.contains(player.GetUID())
+    }
+
+    return IsAdmin(player)
 }

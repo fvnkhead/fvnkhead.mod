@@ -48,6 +48,7 @@ struct {
     string rulesNotOk
 
     bool kickEnabled
+    bool kickSave
     float kickPercentage
     int kickMinPlayers
     table<string, KickInfo> kickTable
@@ -93,6 +94,7 @@ void function fm_Init() {
 
     // kick
     file.kickEnabled = GetConVarBool("fm_kick_enabled")
+    file.kickSave = GetConVarBool("fm_kick_save")
     file.kickPercentage = GetConVarFloat("fm_kick_percentage")
     file.kickMinPlayers = GetConVarInt("fm_kick_min_players")
     file.kickTable = {}
@@ -387,7 +389,7 @@ void function KickPlayer(entity player, bool announce = true) {
         delete file.kickTable[playerUid]
     }
 
-    if (!file.kickedPlayers.contains(playerUid)) {
+    if (file.kickSave && !file.kickedPlayers.contains(playerUid)) {
         file.kickedPlayers.append(playerUid)
     }
 

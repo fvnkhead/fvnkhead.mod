@@ -49,6 +49,10 @@
             "DefaultValue": "1"
         },
         {
+            "Name": "fm_kick_save",
+            "DefaultValue": "1"
+        },
+        {
             "Name": "fm_kick_percentage",
             "DefaultValue": "0.5"
         },

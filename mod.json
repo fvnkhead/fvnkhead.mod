@@ -5,6 +5,11 @@
     "LoadPriority": 1,
     "ConVars": [
         {
+            "Name": "fm_debug_enabled",
+            "DefaultValue": "1"
+        },
+
+        {
             "Name": "fm_admin_uids",
             "DefaultValue": "xxx2441795736,999"
         },
@@ -60,6 +65,10 @@
             "Name": "fm_maps",
             "DefaultValue": "mp_lf_stacks, mp_lf_deck, mp_lf_uma"
         },
+        {
+            "Name": "fm_nextmap_enabled",
+            "DefaultValue": 1
+        },
 
         {
             "Name": "fm_balance_enabled",
@@ -67,7 +76,7 @@
         },
         {
             "Name": "fm_balance_percentage",
-            "DefaultValue": "0.33"
+            "DefaultValue": "0.25"
         }
     ],
     "Scripts": [

@@ -30,6 +30,8 @@ struct PlayerScore {
 // globals
 //------------------------------------------------------------------------------
 struct {
+    bool debugEnabled
+
     array<string> adminUids
     bool adminAuthEnabled
     string adminPassword
@@ -53,6 +55,8 @@ struct {
     
     bool mapsEnabled
     array<string> maps
+    bool nextMapEnabled
+    table<entity, string> nextMapVoteTable
 
     bool balanceEnabled
     float balancePercentage
@@ -66,6 +70,8 @@ struct {
 void function fm_Init() {
     #if SERVER
 
+    file.debugEnabled = GetConVarBool("fm_debug_enabled")
+
     // admins
     array<string> adminUids = split(GetConVarString("fm_admin_uids"), ",")
     foreach (string uid in adminUids) {
@@ -78,10 +84,6 @@ void function fm_Init() {
     // welcome
     file.welcomeEnabled = GetConVarBool("fm_welcome_enabled")
     file.welcome = GetConVarString("fm_welcome")
-    if (file.welcomeEnabled) {
-        AddCallback_OnPlayerRespawned(OnPlayerRespawnedWelcome)
-        AddCallback_OnClientDisconnected(OnClientDisconnectedWelcome)
-    }
     file.welcomedPlayers = []
 
     // rules
@@ -98,12 +100,20 @@ void function fm_Init() {
 
     // maps
     file.mapsEnabled = GetConVarBool("fm_maps_enabled")
+
     file.maps = []
     array<string> maps = split(GetConVarString("fm_maps"), ",")
-    foreach (string map in maps) {
-        file.maps.append(strip(map))
+    foreach (string dirtyMap in maps) {
+        string map = strip(dirtyMap)
+        if (!IsValidMap(map)) {
+            Log("ignoring invalid map '" + map + "'")
+            continue
+        }
+
+        file.maps.append(map)
     }
-    AddCallback_GameStateEnter(eGameState.Postmatch, PostmatchNextMap)
+    file.nextMapEnabled = GetConVarBool("fm_nextmap_enabled")
+    file.nextMapVoteTable = {}
 
     // balance
     file.balanceEnabled = GetConVarBool("fm_balance_enabled")
@@ -112,27 +122,50 @@ void function fm_Init() {
     file.balanceVotedPlayers = []
 
     // commands
-    file.commands.append(NewCommandInfo("!help", CommandHelp, 0, false, false, "!help => get help"))
-    if (file.rulesEnabled) {
-        file.commands.append(NewCommandInfo("!rules", CommandRules, 0, false, false, "!rules => show rules"))
+    CommandInfo auth    = NewCommandInfo("!auth",    CommandAuth,    1, true,  true,  "!auth <password> => authenticate yourself as an admin")
+    CommandInfo help    = NewCommandInfo("!help",    CommandHelp,    0, false, false, "!help => get help")
+    CommandInfo rules   = NewCommandInfo("!rules",   CommandRules,   0, false, false, "!rules => show rules")
+    CommandInfo kick    = NewCommandInfo("!kick",    CommandKick,    1, false, false, "!kick <full or partial player name> => vote to kick a player")
+    CommandInfo maps    = NewCommandInfo("!maps",    CommandMaps,    0, false, false, "!maps => list available maps")
+    CommandInfo nextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, false, false, "!nextmap <full or partial map name> => vote for next map")
+    CommandInfo balance = NewCommandInfo("!balance", CommandBalance, 0, false, false, "!balance => vote for team balance")
+
+
+    if (file.welcomeEnabled) {
+        AddCallback_OnPlayerRespawned(Welcome_OnPlayerRespawned)
+        AddCallback_OnClientDisconnected(Welcome_OnClientDisconnected)
     }
 
     if (file.adminAuthEnabled) {
-        file.commands.append(NewCommandInfo("!auth", CommandAuth, 1, true, true,  "!auth <password> => authenticate yourself as an admin"))
+        file.commands.append(auth)
+    }
+
+    file.commands.append(help)
+
+    if (file.rulesEnabled) {
+        file.commands.append(rules)
     }
 
     if (file.kickEnabled) {
-        file.commands.append(NewCommandInfo("!kick", CommandKick, 1, false, false, "!kick <full or partial player name> => vote to kick a player"))
+        file.commands.append(kick)
+        AddCallback_OnPlayerRespawned(Kick_OnPlayerRespawned)
+        AddCallback_OnClientDisconnected(Kick_OnClientDisconnected)
     }
 
     if (file.mapsEnabled && file.maps.len() > 1) {
-        file.commands.append(NewCommandInfo("!maps", CommandMaps, 0, false, false, "!maps => list available maps"))
+        file.commands.append(maps)
+        AddCallback_GameStateEnter(eGameState.Postmatch, PostmatchChangeMap)
+        if (file.nextMapEnabled) {
+            file.commands.append(nextMap)
+            AddCallback_OnClientDisconnected(NextMap_OnClientDisconnected)
+        }
     }
 
     if (file.balanceEnabled && !IsFFAGame()) {
-        file.commands.append(NewCommandInfo("!balance", CommandBalance, 0, false, false, "!balance => vote to balance teams"))
+        file.commands.append(balance)
     }
 
+    // the beef
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
 
     #endif
@@ -209,7 +242,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 //------------------------------------------------------------------------------
 // welcome
 //------------------------------------------------------------------------------
-void function OnPlayerRespawnedWelcome(entity player) {
+void function Welcome_OnPlayerRespawned(entity player) {
     string uid = player.GetUID()
     if (file.welcomedPlayers.contains(uid)) {
         return
@@ -219,7 +252,7 @@ void function OnPlayerRespawnedWelcome(entity player) {
     file.welcomedPlayers.append(uid)
 }
 
-void function OnClientDisconnectedWelcome(entity player) {
+void function Welcome_OnClientDisconnected(entity player) {
     string uid = player.GetUID()
     if (file.welcomedPlayers.contains(uid)) {
         file.welcomedPlayers.remove(file.welcomedPlayers.find(uid))
@@ -230,14 +263,17 @@ void function OnClientDisconnectedWelcome(entity player) {
 // help
 //------------------------------------------------------------------------------
 bool function CommandHelp(entity player, array<string> args) {
-    string help = "available commands:"
+    array<string> commandNames = []
     foreach (CommandInfo c in file.commands) {
         if (c.isAdmin && !IsAdmin(player)) {
             continue
         }
-        help += " " + c.name
+        commandNames.append(c.name)
     }
+
+    string help = "available commands: " + Join(commandNames, ", ")
     thread AsyncSendMessage(player, Blue(help))
+
     return true
 }
 
@@ -339,20 +375,54 @@ bool function CommandKick(entity player, array<string> args) {
         KickPlayer(target)
     } else {
         int remainingVotes = kickInfo.threshold - kickInfo.voters.len()
-        thread AsyncAnnounceMessage(Blue(player.GetPlayerName() + " voted to kick " + targetName + ", " + remainingVotes + " more vote(s) required"))
+        thread AsyncAnnounceMessage(Purple(player.GetPlayerName() + " wants to kick " + targetName + ", " + remainingVotes + " more vote(s) required"))
     }
 
     return true
 }
 
-void function KickPlayer(entity player) {
+void function KickPlayer(entity player, bool announce = true) {
     string playerUid = player.GetUID()
     if (playerUid in file.kickTable) {
         delete file.kickTable[playerUid]
     }
-    file.kickedPlayers.append(playerUid) // TODO: ensure kicked players cant rejoin during match
+
+    if (!file.kickedPlayers.contains(playerUid)) {
+        file.kickedPlayers.append(playerUid)
+    }
+
     ServerCommand("kick " + player.GetPlayerName())
-    thread AsyncAnnounceMessage(Blue(player.GetPlayerName() + " has been kicked"))
+    if (announce) {
+        thread AsyncAnnounceMessage(Purple(player.GetPlayerName() + " has been kicked"))
+    }
+}
+
+void function Kick_OnPlayerRespawned(entity player) {
+    if (file.kickedPlayers.contains(player.GetUID())) {
+        Debug("[Kick_OnPlayerRespawned] previously kicked " + player.GetPlayerName() + " tried to rejoin")
+        KickPlayer(player, false)
+    }
+}
+
+void function Kick_OnClientDisconnected(entity player) {
+    foreach (string targetUid, KickInfo kickInfo in file.kickTable) {
+        array<entity> voters = kickInfo.voters
+        for (int i = 0; i < voters.len(); i++) {
+            if (voters[i] != player) {
+                continue
+            }
+
+            voters.remove(i)
+            Debug("[Kick_OnClientDisconnected] kick vote from " + player.GetPlayerName() + " removed")
+        }
+
+        if (voters.len() == 0) {
+            delete file.kickTable[targetUid]
+        } else {
+            kickInfo.voters = voters
+            file.kickTable[targetUid] = kickInfo
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -384,41 +454,99 @@ table<string, string> mapNameTable = {
     mp_wargames = "Wargames"
 }
 
+string MapName(string map) {
+    return mapNameTable[map].tolower()
+}
+
 bool function IsValidMap(string map) {
     return map in mapNameTable
 }
 
-bool function CommandMaps(entity player, array<string> args) {
-    string msg = ""
-    for (int i = 0; i < file.maps.len(); i++) {
-        string map = file.maps[i]
-        string mapName = mapNameTable[map]
-        msg += mapName.tolower()
-        if (i < file.maps.len() - 1) {
-            msg += ", "
-        }
+string MapsString() {
+    array<string> mapNames = []
+    for (string map in file.maps) {
+        mapNames.append(MapName(map))
     }
 
-    thread AsyncSendMessage(player, Blue(msg))
+    return Join(mapNames, ", ")
+}
+
+bool function CommandMaps(entity player, array<string> args) {
+    thread AsyncSendMessage(player, Blue(MapsString))
+
     return true
 }
 
-void function PostmatchNextMap() {
-    thread SetNextMap()
+bool function CommandNextMap(entity player, array<string> args) {
+    string mapName = args[0]
+    array<string> foundMaps = FindMapsBySubstring(mapName)
+
+    if (foundMaps.len() == 0) {
+        SendMessage(player, Red("map '" + mapName + "' not found"))
+        return false
+    }
+
+    if (foundMaps.len() > 1) {
+        SendMessage(player, Red("multiple matches for map '" + mapName + "', be more specific"))
+        return false
+    }
+
+    string nextMap = foundMaps[0]
+    if (!file.maps.contains(nextMap)) {
+        SendMessage(player, Red(MapName(nextMap) + " is not in the map pool, available maps: " MapsString()))
+        return false
+    }
+
+    file.nextMapVoteTable[player] <- nextMap
+    thread AsyncAnnounceMessage(player.GetPlayerName() + " wants to play on " + MapName(nextmap))
+    return true;
 }
 
-void function SetNextMap() {
+void function PostmatchChangeMap() {
+    thread DoChangeMap()
+}
+
+void function DoChangeMap() {
     wait GAME_POSTMATCH_LENGTH - 1
 
-    string currentMap = GetMapName()
-    string nextMap
-    if (currentMap == file.maps[file.maps.len() - 1]) {
-        nextMap = file.maps[0]
-    } else {
-        nextMap = file.maps[file.maps.find(currentMap) + 1]
+    string nextMap = GetUsualNextMap()
+    if (file.nextMapEnabled) {
+        string drawnNextMap = DrawNextMapFromVoteTable()
+        if (drawnNextMap != null) {
+            nextMap = drawnNextMap
+        }
     }
 
     GameRules_ChangeMap(nextMap, GameRules_GetGameMode())
+}
+
+string function GetUsualNextMap() {
+    string currentMap = GetMapName()
+    if (currentMap == file.maps[file.maps.len() - 1]) {
+        return = file.maps[0]
+    }
+
+    return file.maps[file.maps.find(currentMap) + 1]
+}
+
+string function DrawNextMapFromVoteTable() {
+    array<string> maps = []
+    foreach (entity player, string map in file.nextMapVoteTable) {
+        maps.append(map)
+    }
+
+    if (maps.len() == 0) {
+        return null
+    }
+
+    return maps[RandomInt(maps.len())]
+}
+
+void function NextMap_OnClientDisconnected(entity player) {
+    if (player in file.nextMapVoteTable) {
+        delete file.nextMapVoteTable[player]
+        Debug("[NextMap_OnClientDisconnected] " + player.GetPlayerName() + "removed from next map vote table")
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -446,7 +574,7 @@ bool function CommandBalance(entity player, array<string> args) {
         DoBalance()
     } else {
         int remainingVotes = file.balanceThreshold - file.balanceVotedPlayers.len()
-        thread AsyncAnnounceMessage(Blue(player.GetPlayerName() + " has voted for team balance, " + remainingVotes + " more vote(s) required"))
+        thread AsyncAnnounceMessage(Purple(player.GetPlayerName() + " wants team balance, " + remainingVotes + " more vote(s) required"))
     }
 
     return true
@@ -479,7 +607,7 @@ void function DoBalance() {
 
     file.balanceVotedPlayers = []
 
-    thread AsyncAnnounceMessage(Blue("teams have been balanced by k/d"))
+    thread AsyncAnnounceMessage(Purple("teams have been balanced by k/d"))
 }
 
 int function PlayerScoreSort(PlayerScore a, PlayerScore b) {
@@ -493,6 +621,18 @@ int function PlayerScoreSort(PlayerScore a, PlayerScore b) {
 //------------------------------------------------------------------------------
 // utils
 //------------------------------------------------------------------------------
+void function Log(string s) {
+     print("[fvnkhead.mod] " + s)
+}
+
+void function Debug(string s) {
+    if (!file.debugEnabled) {
+        return
+    }
+
+    print("[fvnkhead.mod/debug] " + s)
+}
+
 string function Red(string s) {
     return "\x1b[1;31m" + s
 }
@@ -501,8 +641,24 @@ string function Green(string s) {
     return "\x1b[1;32m" + s
 }
 
+string function Purple(string s) {
+    return "\x1b[1;35m" + s
+}
+
 string function Blue(string s) {
     return "\x1b[1;36m" + s
+}
+
+string function Join(array<string> list, string separator) {
+    string s = ""
+    for (int i = 0; i < list.len(); i++) {
+        list[i] += s
+        if (i < file.maps.len() - 1) {
+            msg += separator
+        }
+    }
+
+    return s
 }
 
 void function SendMessage(entity player, string text) {
@@ -534,6 +690,18 @@ array<entity> function FindPlayersBySubstring(string substring) {
     }
 
     return players
+}
+
+array<string> function FindMapsBySubstring(string substring) {
+    substring = substring.tolower()
+    array<string> maps = []
+    foreach (string mapKey, string mapName in mapNameTable) {
+        if (mapName.tolower().find(substring) != null) {
+            maps.append(mapKey)
+        }
+    }
+
+    return maps
 }
 
 bool function IsAdmin(entity player) {

@@ -28,7 +28,7 @@
         },
         {
             "Name": "fm_welcome",
-            "DefaultValue": "welcome! see !help for available commands, and !rules for rules"
+            "DefaultValue": "welcome! see !help for available commands"
         },
 
         {
@@ -42,6 +42,15 @@
         {
             "Name": "fm_rules_not_ok",
             "DefaultValue": "malicious speech, cheating, competitive macros"
+        },
+
+        {
+            "Name": "fm_custom_commands_enabled",
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_custom_commands",
+            "DefaultValue": "!discord=discord.gg/u76mkkEUkD;!weapons=banned weapons: smgs, r201, r101, flatline, spitfire"
         },
 
         {

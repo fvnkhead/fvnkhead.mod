@@ -63,6 +63,9 @@ struct {
     float balancePercentage
     int balanceThreshold
     array<string> balanceVotedPlayers
+
+    bool customCommandsEnabled
+    table<string, string> customCommands
 } file
 
 //------------------------------------------------------------------------------
@@ -132,7 +135,6 @@ void function fm_Init() {
     CommandInfo cmdNextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, false, false, "!nextmap <full or partial map name> => vote for next map")
     CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, false, false, "!balance => vote for team balance")
 
-
     if (file.welcomeEnabled) {
         AddCallback_OnPlayerRespawned(Welcome_OnPlayerRespawned)
         AddCallback_OnClientDisconnected(Welcome_OnClientDisconnected)
@@ -166,6 +168,26 @@ void function fm_Init() {
     if (file.balanceEnabled && !IsFFAGame()) {
         file.commands.append(cmdBalance)
     }
+
+    // custom commands
+    file.customCommandsEnabled = GetConVarBool("fm_custom_commands_enabled")
+    file.customCommands = {}
+    if (file.customCommandsEnabled) {
+        string customCommands = GetConVarString("fm_custom_commands")
+        array<string> entries = split(customCommands, ";")
+        foreach (string entry in entries) {
+            array<string> pair = split(entry, "=")
+            if (pair.len() != 2) {
+                Log("ignoring invalid custom command: " + entry)
+                continue
+            }
+
+            string command = pair[0]
+            string text = pair[1]
+            file.customCommands[command] <- text
+        }
+    }
+
 
     // the beef
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
@@ -205,8 +227,14 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     }
 
     array<string> args = split(message, " ")
-    string command = args[0]
+    string command = args[0].tolower()
     args.remove(0)
+
+    if (command in file.customCommands) {
+        string text = file.customCommands[command]
+        SendMessage(player, Blue(text))
+        return messageInfo
+    }
 
     bool commandFound = false
     bool commandSuccess = false
@@ -273,6 +301,10 @@ bool function CommandHelp(entity player, array<string> args) {
         commandNames.append(c.name)
     }
 
+    foreach (string customCommand, string text in file.customCommands) {
+        commandNames.append(customCommand)
+    }
+
     string help = "available commands: " + Join(commandNames, ", ")
     thread AsyncSendMessage(player, Blue(help))
 
@@ -335,13 +367,11 @@ bool function CommandKick(entity player, array<string> args) {
         return false
     }
 
-    // admins are safe from kicking (for now)
     if (IsAdmin(target)) {
         SendMessage(player, Red("you cannot kick an admin"))
         return false
     }
 
-    // kick player right away if the voter is an admin
     if (IsAuthenticatedAdmin(player)) {
         KickPlayer(target)
         return true

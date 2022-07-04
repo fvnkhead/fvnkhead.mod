@@ -124,13 +124,13 @@ void function fm_Init() {
     file.balanceVotedPlayers = []
 
     // commands
-    CommandInfo auth    = NewCommandInfo("!auth",    CommandAuth,    1, true,  true,  "!auth <password> => authenticate yourself as an admin")
-    CommandInfo help    = NewCommandInfo("!help",    CommandHelp,    0, false, false, "!help => get help")
-    CommandInfo rules   = NewCommandInfo("!rules",   CommandRules,   0, false, false, "!rules => show rules")
-    CommandInfo kick    = NewCommandInfo("!kick",    CommandKick,    1, false, false, "!kick <full or partial player name> => vote to kick a player")
-    CommandInfo maps    = NewCommandInfo("!maps",    CommandMaps,    0, false, false, "!maps => list available maps")
-    CommandInfo nextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, false, false, "!nextmap <full or partial map name> => vote for next map")
-    CommandInfo balance = NewCommandInfo("!balance", CommandBalance, 0, false, false, "!balance => vote for team balance")
+    CommandInfo cmdAuth    = NewCommandInfo("!auth",    CommandAuth,    1, true,  true,  "!auth <password> => authenticate yourself as an admin")
+    CommandInfo cmdHelp    = NewCommandInfo("!help",    CommandHelp,    0, false, false, "!help => get help")
+    CommandInfo cmdRules   = NewCommandInfo("!rules",   CommandRules,   0, false, false, "!rules => show rules")
+    CommandInfo cmdKick    = NewCommandInfo("!kick",    CommandKick,    1, false, false, "!kick <full or partial player name> => vote to kick a player")
+    CommandInfo cmdMaps    = NewCommandInfo("!maps",    CommandMaps,    0, false, false, "!maps => list available maps")
+    CommandInfo cmdNextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, false, false, "!nextmap <full or partial map name> => vote for next map")
+    CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, false, false, "!balance => vote for team balance")
 
 
     if (file.welcomeEnabled) {
@@ -139,32 +139,32 @@ void function fm_Init() {
     }
 
     if (file.adminAuthEnabled) {
-        file.commands.append(auth)
+        file.commands.append(cmdAuth)
     }
 
-    file.commands.append(help)
+    file.commands.append(cmdHelp)
 
     if (file.rulesEnabled) {
-        file.commands.append(rules)
+        file.commands.append(cmdRules)
     }
 
     if (file.kickEnabled) {
-        file.commands.append(kick)
+        file.commands.append(cmdKick)
         AddCallback_OnPlayerRespawned(Kick_OnPlayerRespawned)
         AddCallback_OnClientDisconnected(Kick_OnClientDisconnected)
     }
 
     if (file.mapsEnabled && file.maps.len() > 1) {
-        file.commands.append(maps)
+        file.commands.append(cmdMaps)
         AddCallback_GameStateEnter(eGameState.Postmatch, PostmatchChangeMap)
         if (file.nextMapEnabled) {
-            file.commands.append(nextMap)
+            file.commands.append(cmdNextMap)
             AddCallback_OnClientDisconnected(NextMap_OnClientDisconnected)
         }
     }
 
     if (file.balanceEnabled && !IsFFAGame()) {
-        file.commands.append(balance)
+        file.commands.append(cmdBalance)
     }
 
     // the beef
@@ -456,7 +456,7 @@ table<string, string> mapNameTable = {
     mp_wargames = "Wargames"
 }
 
-string MapName(string map) {
+string function MapName(string map) {
     return mapNameTable[map].tolower()
 }
 
@@ -464,9 +464,9 @@ bool function IsValidMap(string map) {
     return map in mapNameTable
 }
 
-string MapsString() {
+string function MapsString() {
     array<string> mapNames = []
-    for (string map in file.maps) {
+    foreach (string map in file.maps) {
         mapNames.append(MapName(map))
     }
 
@@ -474,7 +474,7 @@ string MapsString() {
 }
 
 bool function CommandMaps(entity player, array<string> args) {
-    thread AsyncSendMessage(player, Blue(MapsString))
+    thread AsyncSendMessage(player, Blue(MapsString()))
 
     return true
 }
@@ -495,12 +495,12 @@ bool function CommandNextMap(entity player, array<string> args) {
 
     string nextMap = foundMaps[0]
     if (!file.maps.contains(nextMap)) {
-        SendMessage(player, Red(MapName(nextMap) + " is not in the map pool, available maps: " MapsString()))
+        SendMessage(player, Red(MapName(nextMap) + " is not in the map pool, available maps: " + MapsString()))
         return false
     }
 
     file.nextMapVoteTable[player] <- nextMap
-    thread AsyncAnnounceMessage(player.GetPlayerName() + " wants to play on " + MapName(nextmap))
+    thread AsyncAnnounceMessage(Purple(player.GetPlayerName() + " wants to play on " + MapName(nextMap)))
     return true;
 }
 
@@ -514,7 +514,7 @@ void function DoChangeMap() {
     string nextMap = GetUsualNextMap()
     if (file.nextMapEnabled) {
         string drawnNextMap = DrawNextMapFromVoteTable()
-        if (drawnNextMap != null) {
+        if (drawnNextMap != "") {
             nextMap = drawnNextMap
         }
     }
@@ -524,11 +524,15 @@ void function DoChangeMap() {
 
 string function GetUsualNextMap() {
     string currentMap = GetMapName()
-    if (currentMap == file.maps[file.maps.len() - 1]) {
-        return = file.maps[0]
+    bool isLastMap = currentMap == file.maps[file.maps.len() - 1]
+    bool isUnknownMap = !file.maps.contains(currentMap)
+    if (isLastMap || isUnknownMap) {
+        return file.maps[0]
     }
 
-    return file.maps[file.maps.find(currentMap) + 1]
+    string nextMap = file.maps[file.maps.find(currentMap) + 1]
+
+    return nextMap
 }
 
 string function DrawNextMapFromVoteTable() {
@@ -538,7 +542,7 @@ string function DrawNextMapFromVoteTable() {
     }
 
     if (maps.len() == 0) {
-        return null
+        return ""
     }
 
     return maps[RandomInt(maps.len())]
@@ -654,9 +658,9 @@ string function Blue(string s) {
 string function Join(array<string> list, string separator) {
     string s = ""
     for (int i = 0; i < list.len(); i++) {
-        list[i] += s
-        if (i < file.maps.len() - 1) {
-            msg += separator
+        s += list[i]
+        if (i < list.len() - 1) {
+            s += separator
         }
     }
 

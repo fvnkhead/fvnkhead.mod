@@ -11,7 +11,7 @@
 
         {
             "Name": "fm_admin_uids",
-            "DefaultValue": "xxx2441795736,999"
+            "DefaultValue": "2441795736,999"
         },
         {
             "Name": "fm_admin_auth_enabled",
@@ -71,7 +71,7 @@
         },
         {
             "Name": "fm_nextmap_enabled",
-            "DefaultValue": 1
+            "DefaultValue": "1"
         },
 
         {

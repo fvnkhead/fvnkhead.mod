@@ -156,9 +156,11 @@ void function fm_Init() {
         AddCallback_OnClientDisconnected(Kick_OnClientDisconnected)
     }
 
+    if (file.maps.len() > 0) {
+        AddCallback_GameStateEnter(eGameState.Postmatch, PostmatchChangeMap)
+    }
     if (file.mapsEnabled && file.maps.len() > 1) {
         file.commands.append(cmdMaps)
-        AddCallback_GameStateEnter(eGameState.Postmatch, PostmatchChangeMap)
         if (file.nextMapEnabled) {
             file.commands.append(cmdNextMap)
             AddCallback_OnClientDisconnected(NextMap_OnClientDisconnected)
@@ -670,19 +672,19 @@ void function Debug(string s) {
 }
 
 string function Red(string s) {
-    return "\x1b[1;31m" + s
+    return "\x1b[91m" + s
 }
 
 string function Green(string s) {
-    return "\x1b[1;32m" + s
+    return "\x1b[92m" + s
 }
 
 string function Purple(string s) {
-    return "\x1b[1;35m" + s
+    return "\x1b[95m" + s
 }
 
 string function Blue(string s) {
-    return "\x1b[1;36m" + s
+    return "\x1b[96m" + s
 }
 
 string function Join(array<string> list, string separator) {

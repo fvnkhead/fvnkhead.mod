@@ -325,8 +325,8 @@ bool function CommandHelp(entity player, array<string> args) {
 // rules
 //------------------------------------------------------------------------------
 bool function CommandRules(entity player, array<string> args) {
-    thread AsyncSendMessage(player, Green("ok = ") + Blue(file.rulesOk))
-    thread AsyncSendMessage(player, Red("not ok = ") + Blue(file.rulesNotOk))
+    thread AsyncSendMessage(player, Blue("ok = " + file.rulesOk))
+    thread AsyncSendMessage(player, Red("not ok = " + file.rulesNotOk))
     return true
 }
 
@@ -695,19 +695,15 @@ void function Debug(string s) {
 }
 
 string function Red(string s) {
-    return "\x1b[91m" + s
+    return "\x1b[112m" + s
 }
 
-string function Green(string s) {
-    return "\x1b[92m" + s
+string function Blue(string s) {
+    return "\x1b[111m" + s
 }
 
 string function Purple(string s) {
     return "\x1b[95m" + s
-}
-
-string function Blue(string s) {
-    return "\x1b[96m" + s
 }
 
 string function Join(array<string> list, string separator) {

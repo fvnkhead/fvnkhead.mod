@@ -98,6 +98,11 @@
         {
             "Name": "fm_balance_postmatch",
             "DefaultValue": "1"
+        },
+
+        {
+            "Name": "fm_roll_enabled",
+            "DefaultValue": "1"
         }
     ],
     "Scripts": [

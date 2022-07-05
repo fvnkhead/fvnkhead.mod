@@ -77,6 +77,8 @@ struct {
     array<string> balanceVotedPlayers
     bool balancePostmatch
 
+    bool rollEnabled
+
     bool customCommandsEnabled
     array<CustomCommand> customCommands
 } file
@@ -141,6 +143,9 @@ void function fm_Init() {
     file.balanceVotedPlayers = []
     file.balancePostmatch = GetConVarBool("fm_balance_postmatch")
 
+    // roll
+    file.rollEnabled = GetConVarBool("fm_roll_enabled")
+
     // add commands and callbacks
     CommandInfo cmdAuth    = NewCommandInfo("!auth",    CommandAuth,    1, 1, true,  true,  "!auth <password> => authenticate yourself as an admin")
     CommandInfo cmdHelp    = NewCommandInfo("!help",    CommandHelp,    0, 0, false, false, "!help => get help")
@@ -149,6 +154,7 @@ void function fm_Init() {
     CommandInfo cmdMaps    = NewCommandInfo("!maps",    CommandMaps,    0, 0, false, false, "!maps => list available maps")
     CommandInfo cmdNextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, 3, false, false, "!nextmap <full or partial map name> => vote for next map")
     CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, 0, false, false, "!balance => vote for team balance")
+    CommandInfo cmdRoll    = NewCommandInfo("!roll",    CommandRoll,    0, 0, false, false, "!roll => roll a number between 1 and 100")
 
     if (file.welcomeEnabled) {
         AddCallback_OnPlayerRespawned(Welcome_OnPlayerRespawned)
@@ -178,6 +184,7 @@ void function fm_Init() {
         file.commands.append(cmdMaps)
         if (file.nextMapEnabled) {
             file.commands.append(cmdNextMap)
+            AddCallback_GameStateEnter(eGameState.WinnerDetermined, NextMap_OnWinnerDetermined)
             AddCallback_OnClientDisconnected(NextMap_OnClientDisconnected)
         }
     }
@@ -186,8 +193,12 @@ void function fm_Init() {
         file.commands.append(cmdBalance)
     }
 
-    if (file.balancePostmatch) {
+    if (file.balancePostmatch && !IsFFAGame()) {
         AddCallback_GameStateEnter(eGameState.Postmatch, Balance_Postmatch)
+    }
+
+    if (file.rollEnabled) {
+        file.commands.append(cmdRoll)
     }
 
     // custom commands
@@ -554,7 +565,7 @@ bool function CommandNextMap(entity player, array<string> args) {
     }
 
     file.nextMapVoteTable[player] <- nextMap
-    thread AsyncAnnounceMessage(Purple(player.GetPlayerName() + " wants to play on " + MapName(nextMap) + ", next map candidates: " + NextMapCandidatesString()))
+    thread AsyncAnnounceMessage(Purple(player.GetPlayerName() + " wants to play on " + MapName(nextMap)))
     return true;
 }
 
@@ -655,6 +666,11 @@ int function NextMapScoreSort(NextMapScore a, NextMapScore b) {
     return a.votes < b.votes ? 1 : -1
 }
 
+void function NextMap_OnWinnerDetermined() {
+    if (file.nextMapVoteTable.len() > 0) {
+        AnnounceMessage(Purple("next map candidates: " + NextMapCandidatesString()))
+    }
+}
 
 void function NextMap_OnClientDisconnected(entity player) {
     if (player in file.nextMapVoteTable) {
@@ -745,6 +761,15 @@ int function PlayerScoreSort(PlayerScore a, PlayerScore b) {
 
 void function Balance_Postmatch() {
     DoBalance()
+}
+
+//------------------------------------------------------------------------------
+// roll
+//------------------------------------------------------------------------------
+bool function CommandRoll(entity player, array<string> args) {
+    int num = RandomInt(100) + 1
+    thread AsyncAnnounceMessage(Purple(player.GetPlayerName() + " rolled " + num))
+    return true
 }
 
 //------------------------------------------------------------------------------

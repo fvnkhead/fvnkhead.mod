@@ -11,7 +11,7 @@
 
         {
             "Name": "fm_admin_uids",
-            "DefaultValue": "2441795736,999"
+            "DefaultValue": "1234,5678"
         },
         {
             "Name": "fm_admin_auth_enabled",
@@ -50,7 +50,7 @@
         },
         {
             "Name": "fm_custom_commands",
-            "DefaultValue": "!discord=discord.gg/u76mkkEUkD;!weapons=banned weapons: smgs, r201, r101, flatline, spitfire"
+            "DefaultValue": "!discord=my_discord_link|!website=my_website"
         },
 
         {
@@ -89,7 +89,7 @@
         },
         {
             "Name": "fm_balance_percentage",
-            "DefaultValue": "0.25"
+            "DefaultValue": "0.3"
         }
     ],
     "Scripts": [

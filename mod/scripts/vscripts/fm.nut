@@ -255,7 +255,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 
     foreach (CustomCommand c in file.customCommands) {
         if (c.name == command) {
-            SendMessage(player, Blue(c.text))
+            thread AsyncSendMessage(player, Blue(c.text))
             return messageInfo
         }
     }
@@ -330,7 +330,7 @@ bool function CommandHelp(entity player, array<string> args) {
     }
 
     string help = "available commands: " + Join(commandNames, ", ")
-    SendMessage(player, Blue(help))
+    thread AsyncSendMessage(player, Blue(help))
 
     return true
 }
@@ -339,8 +339,8 @@ bool function CommandHelp(entity player, array<string> args) {
 // rules
 //------------------------------------------------------------------------------
 bool function CommandRules(entity player, array<string> args) {
-    SendMessage(player, Blue("ok = " + file.rulesOk))
-    SendMessage(player, Red("not ok = " + file.rulesNotOk))
+    thread AsyncSendMessage(player, Blue("ok = " + file.rulesOk))
+    thread AsyncSendMessage(player, Red("not ok = " + file.rulesNotOk))
     return true
 }
 
@@ -431,7 +431,7 @@ bool function CommandKick(entity player, array<string> args) {
         KickPlayer(target)
     } else {
         int remainingVotes = kickInfo.threshold - kickInfo.voters.len()
-        AnnounceMessage(Purple(player.GetPlayerName() + " wants to kick " + targetName + ", " + remainingVotes + " more vote(s) required"))
+        thread AsyncAnnounceMessage(Purple(player.GetPlayerName() + " wants to kick " + targetName + ", " + remainingVotes + " more vote(s) required"))
     }
 
     return true
@@ -449,7 +449,7 @@ void function KickPlayer(entity player, bool announce = true) {
 
     ServerCommand("kick " + player.GetPlayerName())
     if (announce) {
-        AnnounceMessage(Purple(player.GetPlayerName() + " has been kicked"))
+        thread AsyncAnnounceMessage(Purple(player.GetPlayerName() + " has been kicked"))
     }
 }
 
@@ -528,7 +528,7 @@ string function MapsString() {
 }
 
 bool function CommandMaps(entity player, array<string> args) {
-    SendMessage(player, Blue(MapsString()))
+    thread AsyncSendMessage(player, Blue(MapsString()))
 
     return true
 }
@@ -554,7 +554,7 @@ bool function CommandNextMap(entity player, array<string> args) {
     }
 
     file.nextMapVoteTable[player] <- nextMap
-    AnnounceMessage(Purple(player.GetPlayerName() + " wants to play on " + MapName(nextMap) + ", next map candidates: " + NextMapCandidatesString()))
+    thread AsyncAnnounceMessage(Purple(player.GetPlayerName() + " wants to play on " + MapName(nextMap) + ", next map candidates: " + NextMapCandidatesString()))
     return true;
 }
 
@@ -699,7 +699,7 @@ bool function CommandBalance(entity player, array<string> args) {
     } else {
         int remainingVotes = file.balanceThreshold - file.balanceVotedPlayers.len()
         Debug("[CommandBalance] remaining balance votes: " + remainingVotes)
-        AnnounceMessage(Purple(player.GetPlayerName() + " wants team balance, " + remainingVotes + " more vote(s) required"))
+        thread AsyncAnnounceMessage(Purple(player.GetPlayerName() + " wants team balance, " + remainingVotes + " more vote(s) required"))
     }
 
     return true
@@ -732,7 +732,7 @@ void function DoBalance() {
 
     file.balanceVotedPlayers = []
 
-    AnnounceMessage(Purple("teams have been balanced by k/d"))
+    thread AsyncAnnounceMessage(Purple("teams have been balanced by k/d"))
 }
 
 int function PlayerScoreSort(PlayerScore a, PlayerScore b) {
@@ -790,7 +790,17 @@ void function SendMessage(entity player, string text) {
     Chat_ServerPrivateMessage(player, text, false)
 }
 
+void function AsyncSendMessage(entity player, string text) {
+    wait 0.1
+    Chat_ServerPrivateMessage(player, text, false)
+}
+
 void function AnnounceMessage(string text) {
+    Chat_ServerBroadcast(text)
+}
+
+void function AsyncAnnounceMessage(string text) {
+    wait 0.1
     Chat_ServerBroadcast(text)
 }
 

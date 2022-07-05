@@ -10,7 +10,8 @@ global function fm_Init
 struct CommandInfo {
     string name
     bool functionref(entity, array<string>) fn
-    int argCount,
+    int minArgs,
+    int maxArgs
     bool isSilent,
     bool isAdmin,
     string usage
@@ -136,13 +137,13 @@ void function fm_Init() {
     file.balancePostmatch = GetConVarBool("fm_balance_postmatch")
 
     // add commands and callbacks
-    CommandInfo cmdAuth    = NewCommandInfo("!auth",    CommandAuth,    1, true,  true,  "!auth <password> => authenticate yourself as an admin")
-    CommandInfo cmdHelp    = NewCommandInfo("!help",    CommandHelp,    0, false, false, "!help => get help")
-    CommandInfo cmdRules   = NewCommandInfo("!rules",   CommandRules,   0, false, false, "!rules => show rules")
-    CommandInfo cmdKick    = NewCommandInfo("!kick",    CommandKick,    1, false, false, "!kick <full or partial player name> => vote to kick a player")
-    CommandInfo cmdMaps    = NewCommandInfo("!maps",    CommandMaps,    0, false, false, "!maps => list available maps")
-    CommandInfo cmdNextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, false, false, "!nextmap <full or partial map name> => vote for next map")
-    CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, false, false, "!balance => vote for team balance")
+    CommandInfo cmdAuth    = NewCommandInfo("!auth",    CommandAuth,    1, 1, true,  true,  "!auth <password> => authenticate yourself as an admin")
+    CommandInfo cmdHelp    = NewCommandInfo("!help",    CommandHelp,    0, 0, false, false, "!help => get help")
+    CommandInfo cmdRules   = NewCommandInfo("!rules",   CommandRules,   0, 0, false, false, "!rules => show rules")
+    CommandInfo cmdKick    = NewCommandInfo("!kick",    CommandKick,    1, 1, false, false, "!kick <full or partial player name> => vote to kick a player")
+    CommandInfo cmdMaps    = NewCommandInfo("!maps",    CommandMaps,    0, 0, false, false, "!maps => list available maps")
+    CommandInfo cmdNextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, 3, false, false, "!nextmap <full or partial map name> => vote for next map")
+    CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, 0, false, false, "!balance => vote for team balance")
 
     if (file.welcomeEnabled) {
         AddCallback_OnPlayerRespawned(Welcome_OnPlayerRespawned)
@@ -213,11 +214,12 @@ void function fm_Init() {
 //------------------------------------------------------------------------------
 // command handling
 //------------------------------------------------------------------------------
-CommandInfo function NewCommandInfo(string name, bool functionref(entity, array<string>) fn, int argCount, bool isSilent, bool isAdmin, string usage) {
+CommandInfo function NewCommandInfo(string name, bool functionref(entity, array<string>) fn, int minArgs, int maxArgs, bool isSilent, bool isAdmin, string usage) {
     CommandInfo commandInfo
     commandInfo.name = name
     commandInfo.fn = fn
-    commandInfo.argCount = argCount
+    commandInfo.minArgs = minArgs
+    commandInfo.maxArgs = maxArgs
     commandInfo.isSilent = isSilent
     commandInfo.isAdmin = isAdmin
     commandInfo.usage = usage
@@ -265,7 +267,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
         commandFound = true
         messageInfo.shouldBlock = c.isSilent
 
-        if (args.len() != c.argCount) {
+        if (args.len() < c.minArgs || args.len() > c.maxArgs) {
             SendMessage(player, Red("usage: " + c.usage))
             commandSuccess = false
             break
@@ -525,7 +527,7 @@ bool function CommandMaps(entity player, array<string> args) {
 }
 
 bool function CommandNextMap(entity player, array<string> args) {
-    string mapName = args[0]
+    string mapName = Join(args, " ")
     array<string> foundMaps = FindMapsBySubstring(mapName)
 
     if (foundMaps.len() == 0) {

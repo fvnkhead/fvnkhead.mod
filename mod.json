@@ -67,7 +67,7 @@
         },
         {
             "Name": "fm_kick_min_players",
-            "DefaultValue": "6"
+            "DefaultValue": "5"
         },
 
         {

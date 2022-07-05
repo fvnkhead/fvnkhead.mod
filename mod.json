@@ -89,7 +89,15 @@
         },
         {
             "Name": "fm_balance_percentage",
-            "DefaultValue": "0.3"
+            "DefaultValue": "0.35"
+        },
+        {
+            "Name": "fm_balance_min_players",
+            "DefaultValue": "3"
+        },
+        {
+            "Name": "fm_balance_postmatch",
+            "DefaultValue": "1"
         }
     ],
     "Scripts": [

@@ -61,8 +61,10 @@ struct {
 
     bool balanceEnabled
     float balancePercentage
+    int balanceMinPlayers
     int balanceThreshold
     array<string> balanceVotedPlayers
+    bool balancePostmatch
 
     bool customCommandsEnabled
     table<string, string> customCommands
@@ -123,10 +125,12 @@ void function fm_Init() {
     // balance
     file.balanceEnabled = GetConVarBool("fm_balance_enabled")
     file.balancePercentage = GetConVarFloat("fm_balance_percentage")
+    file.balanceMinPlayers = GetConVarInt("fm_balance_min_players")
     file.balanceThreshold = 0
     file.balanceVotedPlayers = []
+    file.balancePostmatch = GetConVarBool("fm_balance_postmatch")
 
-    // commands
+    // add commands and callbacks
     CommandInfo cmdAuth    = NewCommandInfo("!auth",    CommandAuth,    1, true,  true,  "!auth <password> => authenticate yourself as an admin")
     CommandInfo cmdHelp    = NewCommandInfo("!help",    CommandHelp,    0, false, false, "!help => get help")
     CommandInfo cmdRules   = NewCommandInfo("!rules",   CommandRules,   0, false, false, "!rules => show rules")
@@ -169,6 +173,10 @@ void function fm_Init() {
 
     if (file.balanceEnabled && !IsFFAGame()) {
         file.commands.append(cmdBalance)
+    }
+
+    if (file.balancePostmatch) {
+        AddCallback_GameStateEnter(eGameState.Postmatch, Balance_Postmatch)
     }
 
     // custom commands
@@ -234,7 +242,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 
     if (command in file.customCommands) {
         string text = file.customCommands[command]
-        SendMessage(player, Blue(text))
+        thread AsyncSendMessage(player, Blue(text))
         return messageInfo
     }
 
@@ -381,7 +389,7 @@ bool function CommandKick(entity player, array<string> args) {
 
     if (GetPlayerArray().len() < file.kickMinPlayers) {
         // TODO: store into kicktable anyway?
-        SendMessage(player, Red("not enough players for vote kick, at least " + file.kickMinPlayers + " are required"))
+        SendMessage(player, Red("not enough players for kick vote, at least " + file.kickMinPlayers + " required"))
         return false
     }
 
@@ -600,6 +608,11 @@ bool function CommandBalance(entity player, array<string> args) {
         return true
     }
 
+    if (GetPlayerArray().len() < file.balanceMinPlayers) {
+        SendMessage(player, Red("not enough players for balance, at least " + file.balanceMinPlayers + " required"))
+        return false
+    }
+
     if (file.balanceVotedPlayers.contains(playerUid)) {
         Debug("[CommandBalance] " + player.GetPlayerName() + "already balance voted")
         SendMessage(player, Red("you have already voted for balance"))
@@ -660,6 +673,10 @@ int function PlayerScoreSort(PlayerScore a, PlayerScore b) {
     }
 
     return a.score < b.score ? -1 : 1
+}
+
+void function Balance_Postmatch() {
+    DoBalance()
 }
 
 //------------------------------------------------------------------------------

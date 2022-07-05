@@ -87,8 +87,6 @@ struct {
 // init
 //------------------------------------------------------------------------------
 void function fm_Init() {
-    #if SERVER
-
     file.debugEnabled = GetConVarBool("fm_debug_enabled")
 
     // admins
@@ -224,8 +222,6 @@ void function fm_Init() {
 
     // the beef
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
-
-    #endif
 }
 
 //------------------------------------------------------------------------------

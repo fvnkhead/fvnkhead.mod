@@ -32,6 +32,11 @@ struct NextMapScore {
     int votes
 }
 
+struct CustomCommand {
+    string name
+    string text
+}
+
 //------------------------------------------------------------------------------
 // globals
 //------------------------------------------------------------------------------
@@ -73,7 +78,7 @@ struct {
     bool balancePostmatch
 
     bool customCommandsEnabled
-    table<string, string> customCommands
+    array<CustomCommand> customCommands
 } file
 
 //------------------------------------------------------------------------------
@@ -187,7 +192,7 @@ void function fm_Init() {
 
     // custom commands
     file.customCommandsEnabled = GetConVarBool("fm_custom_commands_enabled")
-    file.customCommands = {}
+    file.customCommands = []
     if (file.customCommandsEnabled) {
         string customCommands = GetConVarString("fm_custom_commands")
         array<string> entries = split(customCommands, "|")
@@ -198,9 +203,10 @@ void function fm_Init() {
                 continue
             }
 
-            string command = pair[0]
-            string text = pair[1]
-            file.customCommands[command] <- text
+            CustomCommand command
+            command.name = pair[0]
+            command.text = pair[1]
+            file.customCommands.append(command)
         }
     }
 
@@ -247,10 +253,11 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     string command = args[0].tolower()
     args.remove(0)
 
-    if (command in file.customCommands) {
-        string text = file.customCommands[command]
-        SendMessage(player, Blue(text))
-        return messageInfo
+    foreach (CustomCommand c in file.customCommands) {
+        if (c.name == command) {
+            SendMessage(player, Blue(c.text))
+            return messageInfo
+        }
     }
 
     bool commandFound = false
@@ -318,8 +325,8 @@ bool function CommandHelp(entity player, array<string> args) {
         commandNames.append(c.name)
     }
 
-    foreach (string customCommand, string text in file.customCommands) {
-        commandNames.append(customCommand)
+    foreach (CustomCommand c in file.customCommands) {
+        commandNames.append(c.name)
     }
 
     string help = "available commands: " + Join(commandNames, ", ")

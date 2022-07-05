@@ -176,7 +176,7 @@ void function fm_Init() {
     file.customCommands = {}
     if (file.customCommandsEnabled) {
         string customCommands = GetConVarString("fm_custom_commands")
-        array<string> entries = split(customCommands, ";")
+        array<string> entries = split(customCommands, "|")
         foreach (string entry in entries) {
             array<string> pair = split(entry, "=")
             if (pair.len() != 2) {

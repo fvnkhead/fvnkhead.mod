@@ -587,13 +587,16 @@ string function DrawNextMapFromVoteTable() {
     foreach (entity player, string map in file.nextMapVoteTable) {
         maps.append(map)
     }
+
     Debug("[DrawNextMapFromVoteTable] maps = [" + Join(maps, ", ") + "]")
 
     if (maps.len() == 0) {
         return ""
     }
 
-    return maps[RandomInt(maps.len())]
+    string nextMap = maps[RandomInt(maps.len())]
+    Debug("[DrawNextMapFromVoteTable] nextMap = " + nextMap)
+    return nextMap
 }
 
 string function NextMapCandidatesString() {

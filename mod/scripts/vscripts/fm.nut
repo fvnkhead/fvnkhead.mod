@@ -743,7 +743,7 @@ void function DoBalance() {
         }
     }
 
-    file.balanceVotedPlayers = []
+    file.balanceVotedPlayers.clear()
 
     AnnounceMessage(Purple("teams have been balanced by k/d"))
 }

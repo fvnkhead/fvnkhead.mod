@@ -124,6 +124,11 @@
         },
 
         {
+            "Name": "fm_yell_enabled",
+            "DefaultValue": "1"
+        },
+
+        {
             "Name": "fm_roll_enabled",
             "DefaultValue": "1"
         }

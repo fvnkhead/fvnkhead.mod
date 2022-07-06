@@ -88,6 +88,8 @@ struct {
     int skipThreshold
     array<entity> skipVoters
 
+    bool yellEnabled
+
     bool rollEnabled
 
     bool customCommandsEnabled
@@ -164,20 +166,25 @@ void function fm_Init() {
     file.skipPercentage = GetConVarFloat("fm_skip_percentage")
     file.skipVoters = []
 
+    // yell
+    file.yellEnabled = GetConVarBool("fm_yell_enabled")
+
     // roll
     file.rollEnabled = GetConVarBool("fm_roll_enabled")
 
     // add commands and callbacks
-    CommandInfo cmdAuth    = NewCommandInfo("!auth",    CommandAuth,    1, 1, true,  true,  "!auth <password> => authenticate yourself as an admin")
-    CommandInfo cmdHelp    = NewCommandInfo("!help",    CommandHelp,    0, 0, false, false, "!help => get help")
-    CommandInfo cmdRules   = NewCommandInfo("!rules",   CommandRules,   0, 0, false, false, "!rules => show rules")
-    CommandInfo cmdKick    = NewCommandInfo("!kick",    CommandKick,    1, 1, false, false, "!kick <full or partial player name> => vote to kick a player")
-    CommandInfo cmdMaps    = NewCommandInfo("!maps",    CommandMaps,    0, 0, false, false, "!maps => list available maps")
-    CommandInfo cmdNextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, 3, false, false, "!nextmap <full or partial map name> => vote for next map")
-    CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, 0, false, false, "!balance => vote for team balance")
-    CommandInfo cmdExtend  = NewCommandInfo("!extend",  CommandExtend,  0, 0, false, false, "!extend => vote to extend map time")
-    CommandInfo cmdSkip    = NewCommandInfo("!skip",    CommandSkip,    0, 0, false, false, "!skip => vote to skip current map")
-    CommandInfo cmdRoll    = NewCommandInfo("!roll",    CommandRoll,    0, 0, false, false, "!roll => roll a number between 1 and 100")
+    CommandInfo cmdHelp    = NewCommandInfo("!help",    CommandHelp,    0, 0,  false, false, "!help => get help")
+    CommandInfo cmdRules   = NewCommandInfo("!rules",   CommandRules,   0, 0,  false, false, "!rules => show rules")
+    CommandInfo cmdKick    = NewCommandInfo("!kick",    CommandKick,    1, 1,  false, false, "!kick <full or partial player name> => vote to kick a player")
+    CommandInfo cmdMaps    = NewCommandInfo("!maps",    CommandMaps,    0, 0,  false, false, "!maps => list available maps")
+    CommandInfo cmdNextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, 3,  false, false, "!nextmap <full or partial map name> => vote for next map")
+    CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, 0,  false, false, "!balance => vote for team balance")
+    CommandInfo cmdExtend  = NewCommandInfo("!extend",  CommandExtend,  0, 0,  false, false, "!extend => vote to extend map time")
+    CommandInfo cmdSkip    = NewCommandInfo("!skip",    CommandSkip,    0, 0,  false, false, "!skip => vote to skip current map")
+    CommandInfo cmdRoll    = NewCommandInfo("!roll",    CommandRoll,    0, 0,  false, false, "!roll => roll a number between 1 and 100")
+    // admin commands
+    CommandInfo cmdAuth    = NewCommandInfo("!auth",    CommandAuth,    1, 1,  true,  true,  "!auth <password> => authenticate yourself as an admin")
+    CommandInfo cmdYell    = NewCommandInfo("!yell",    CommandYell,    1, -1, false, true,  "!yell ... => yell something")
 
     if (file.welcomeEnabled) {
         AddCallback_OnPlayerRespawned(Welcome_OnPlayerRespawned)
@@ -229,6 +236,10 @@ void function fm_Init() {
     if (file.skipEnabled) {
         file.commands.append(cmdSkip)
         AddCallback_OnClientDisconnected(Skip_OnClientDisconnected)
+    }
+
+    if (file.yellEnabled) {
+        file.commands.append(cmdYell)
     }
 
     if (file.rollEnabled) {
@@ -326,7 +337,13 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
         commandFound = true
         messageInfo.shouldBlock = c.isSilent
 
-        if (args.len() < c.minArgs || args.len() > c.maxArgs) {
+        if (c.isAdmin && IsAdmin(player) && !IsAuthenticatedAdmin(player) && c.name != "!auth") {
+            SendMessage(player, Red("authenticate first"))
+            commandSuccess = false
+            break
+        }
+
+        if (args.len() < c.minArgs || (c.maxArgs != -1 && args.len() > c.maxArgs)) {
             SendMessage(player, Red("usage: " + c.usage))
             commandSuccess = false
             break
@@ -372,20 +389,29 @@ void function Welcome_OnClientDisconnected(entity player) {
 // help
 //------------------------------------------------------------------------------
 bool function CommandHelp(entity player, array<string> args) {
-    array<string> commandNames = []
+    array<string> userCommands = []
+    array<string> adminCommands = []
     foreach (CommandInfo c in file.commands) {
-        if (c.isAdmin && !IsAdmin(player)) {
-            continue
+        if (c.isAdmin) {
+            adminCommands.append(c.name)
+        } else {
+            userCommands.append(c.name)
         }
-        commandNames.append(c.name)
     }
 
     foreach (CustomCommand c in file.customCommands) {
-        commandNames.append(c.name)
+        userCommands.append(c.name)
     }
 
-    string help = "available commands: " + Join(commandNames, ", ")
-    SendMessage(player, Blue(help))
+    string userHelp = "available commands: " + Join(userCommands, ", ")
+    SendMessage(player, Blue(userHelp))
+
+    if (!IsAdmin(player)) {
+        return true
+    }
+
+    string adminHelp = "admin commands: " + Join(adminCommands, ", ")
+    SendMessage(player, Blue(adminHelp))
 
     return true
 }
@@ -895,6 +921,15 @@ void function Skip_OnClientDisconnected(entity player) {
 }
 
 //------------------------------------------------------------------------------
+// yell
+//------------------------------------------------------------------------------
+bool function CommandYell(entity player, array<string> args) {
+    string msg = Join(args, " ")
+    AnnounceHUD(msg, 255, 0, 0)
+    return true
+}
+
+//------------------------------------------------------------------------------
 // roll
 //------------------------------------------------------------------------------
 bool function CommandRoll(entity player, array<string> args) {
@@ -962,6 +997,16 @@ void function AnnounceMessage(string text) {
 void function AsyncAnnounceMessage(string text) {
     wait 0.1
     Chat_ServerBroadcast(text)
+}
+
+void function SendHUD(entity player, string msg, int r, int g, int b, int time = 10) {
+    SendHudMessage(player, msg, -1, 0.2, r, g, b, 255, 0.15, time, 1)
+}
+
+void function AnnounceHUD(string msg, int r, int g, int b, int time = 10) {
+    foreach (entity player in GetPlayerArray()) {
+        SendHUD(player, msg, r, g, b, time)
+    }
 }
 
 array<entity> function FindPlayersBySubstring(string substring) {

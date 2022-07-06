@@ -233,7 +233,7 @@ void function fm_Init() {
         AddCallback_OnClientDisconnected(Extend_OnClientDisconnected)
     }
 
-    if (file.skipEnabled) {
+    if (file.skipEnabled && file.maps.len() > 1) {
         file.commands.append(cmdSkip)
         AddCallback_OnClientDisconnected(Skip_OnClientDisconnected)
     }

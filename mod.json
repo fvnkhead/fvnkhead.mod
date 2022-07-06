@@ -2,7 +2,7 @@
     "Name": "fvnkhead.mod",
     "Description": "fvnkhead's server mod",
     "Version": "1.0.0",
-    "LoadPriority": 0,
+    "LoadPriority": 1,
     "RequiredOnClient": false,
     "ConVars": [
         {

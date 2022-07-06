@@ -429,13 +429,9 @@ bool function CommandKick(entity player, array<string> args) {
     // ensure kicked player is in file.kickTable
     if (targetUid in file.kickTable) {
         KickInfo kickInfo = file.kickTable[targetUid]
-        foreach (entity voter in kickInfo.voters) {
-            if (voter.GetUID() == player.GetUID()) {
-                SendMessage(player, Red("you have already voted to kick " + targetName))
-                return false
-            }
+        if (!kickInfo.voters.contains(player)){
+            kickInfo.voters.append(player)
         }
-        kickInfo.voters.append(player)
     } else {
         KickInfo kickInfo
         kickInfo.voters = []

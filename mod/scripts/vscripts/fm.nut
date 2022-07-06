@@ -240,19 +240,26 @@ CommandInfo function NewCommandInfo(string name, bool functionref(entity, array<
 }
 
 ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo) {
-    if (IsLobby()) {
-        return messageInfo
-    }
+    // might be buggy
+    //if (IsLobby()) {
+    //    return messageInfo
+    //}
 
     entity player = messageInfo.player
     string message = strip(messageInfo.message)
+    Debug("[ChatCallback] ----- BEGIN -----")
+    Debug("[ChatCallback] player: " + player.GetPlayerName())
+    Debug("[ChatCallback] message: " + message)
     bool isCommand = format("%c", message[0]) == "!"
     if (!isCommand) {
         // prevent mewn from leaking the admin password
         if (file.adminAuthEnabled && IsAdmin(player) && message.tolower().find(file.adminPassword.tolower()) != null) {
             SendMessage(player, Red("learn to type, mewn"))
             messageInfo.shouldBlock = true
+            Debug("[ChatCallback] mewn moment")
         }
+        Debug("[ChatCallback] not a command")
+        Debug("[ChatCallback] ----- END -----")
         return messageInfo
     }
 
@@ -263,6 +270,8 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     foreach (CustomCommand c in file.customCommands) {
         if (c.name == command) {
             SendMessage(player, Blue(c.text))
+            Debug("[ChatCallback] custom command")
+            Debug("[ChatCallback] ----- END -----")
             return messageInfo
         }
     }
@@ -293,10 +302,13 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     if (!commandFound) {
         SendMessage(player, Red("unknown command: " + command))
         messageInfo.shouldBlock = true
+        Debug("[ChatCallback] command not found")
     } else if (!commandSuccess) {
+        Debug("[ChatCallback] command failure")
         messageInfo.shouldBlock = true
     }
 
+    Debug("[ChatCallback] ----- END -----")
     return messageInfo
 }
 

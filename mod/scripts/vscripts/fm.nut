@@ -74,7 +74,7 @@ struct {
     float balancePercentage
     int balanceMinPlayers
     int balanceThreshold
-    array<string> balanceVoters
+    array<entity> balanceVoters
     bool balancePostmatch
 
     bool extendEnabled
@@ -498,12 +498,8 @@ void function Kick_OnPlayerRespawned(entity player) {
 void function Kick_OnClientDisconnected(entity player) {
     foreach (string targetUid, KickInfo kickInfo in file.kickTable) {
         array<entity> voters = kickInfo.voters
-        for (int i = 0; i < voters.len(); i++) {
-            if (voters[i] != player) {
-                continue
-            }
-
-            voters.remove(i)
+        if (voters.contains(player)) {
+            voters.remove(voters.find(player))
             Debug("[Kick_OnClientDisconnected] kick vote from " + player.GetPlayerName() + " removed")
         }
 
@@ -699,7 +695,7 @@ void function NextMap_OnWinnerDetermined() {
 void function NextMap_OnClientDisconnected(entity player) {
     if (player in file.nextMapVoteTable) {
         delete file.nextMapVoteTable[player]
-        Debug("[NextMap_OnClientDisconnected] " + player.GetPlayerName() + "removed from next map vote table")
+        Debug("[NextMap_OnClientDisconnected] " + player.GetPlayerName() + " removed from next map vote table")
     }
 }
 
@@ -708,8 +704,6 @@ void function NextMap_OnClientDisconnected(entity player) {
 //------------------------------------------------------------------------------
 bool function CommandBalance(entity player, array<string> args) {
     Debug("[CommandBalance] balance by " + player.GetPlayerName() + ", balance voters: " + file.balanceVoters.len() + ", threshold: " + file.balanceThreshold + ", percentage: " + file.balancePercentage)
-    string playerUid = player.GetUID()
-
     if (IsAuthenticatedAdmin(player)) {
         Debug("[CommandBalance] admin balance by " + player.GetPlayerName())
         DoBalance()
@@ -726,8 +720,8 @@ bool function CommandBalance(entity player, array<string> args) {
         Debug("[CommandBalance] setting balance threshold to " + file.balanceThreshold)
     }
 
-    if (!file.balanceVoters.contains(playerUid)) {
-        file.balanceVoters.append(playerUid)
+    if (!file.balanceVoters.contains(player)) {
+        file.balanceVoters.append(player)
     }
 
     if (file.balanceVoters.len() >= file.balanceThreshold) {
@@ -786,9 +780,9 @@ void function Balance_Postmatch() {
 }
 
 void function Balance_OnClientDisconnected(entity player) {
-    if (file.balanceVoters.contains(player.GetUID())) {
-        file.balanceVoters.remove(file.balanceVoters.find(player.GetUID()))
-        Debug("[Balance_OnClientDisconnected] " + player.GetPlayerName() + "removed from balance voters")
+    if (file.balanceVoters.contains(player)) {
+        file.balanceVoters.remove(file.balanceVoters.find(player))
+        Debug("[Balance_OnClientDisconnected] " + player.GetPlayerName() + " removed from balance voters")
     }
 }
 
@@ -832,7 +826,7 @@ void function DoExtend() {
 void function Extend_OnClientDisconnected(entity player) {
     if (file.extendVoters.contains(player)) {
         file.extendVoters.remove(file.extendVoters.find(player))
-        Debug("[Extend_OnClientDisconnected] " + player.GetPlayerName() + "removed from extend voters")
+        Debug("[Extend_OnClientDisconnected] " + player.GetPlayerName() + " removed from extend voters")
     }
 }
 

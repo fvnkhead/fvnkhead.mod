@@ -115,6 +115,15 @@
         },
 
         {
+            "Name": "fm_skip_enabled",
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_skip_percentage",
+            "DefaultValue": "0.5"
+        },
+
+        {
             "Name": "fm_roll_enabled",
             "DefaultValue": "1"
         }

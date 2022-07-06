@@ -83,6 +83,11 @@ struct {
     int extendThreshold
     array<entity> extendVoters
 
+    bool skipEnabled
+    float skipPercentage
+    int skipThreshold
+    array<entity> skipVoters
+
     bool rollEnabled
 
     bool customCommandsEnabled
@@ -154,6 +159,11 @@ void function fm_Init() {
     file.extendThreshold = 0
     file.extendVoters = []
 
+    // skip
+    file.skipEnabled = GetConVarBool("fm_skip_enabled")
+    file.skipPercentage = GetConVarFloat("fm_skip_percentage")
+    file.skipVoters = []
+
     // roll
     file.rollEnabled = GetConVarBool("fm_roll_enabled")
 
@@ -166,6 +176,7 @@ void function fm_Init() {
     CommandInfo cmdNextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, 3, false, false, "!nextmap <full or partial map name> => vote for next map")
     CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, 0, false, false, "!balance => vote for team balance")
     CommandInfo cmdExtend  = NewCommandInfo("!extend",  CommandExtend,  0, 0, false, false, "!extend => vote to extend map time")
+    CommandInfo cmdSkip    = NewCommandInfo("!skip",    CommandSkip,    0, 0, false, false, "!skip => vote to skip current map")
     CommandInfo cmdRoll    = NewCommandInfo("!roll",    CommandRoll,    0, 0, false, false, "!roll => roll a number between 1 and 100")
 
     if (file.welcomeEnabled) {
@@ -213,6 +224,11 @@ void function fm_Init() {
     if (file.extendEnabled) {
         file.commands.append(cmdExtend)
         AddCallback_OnClientDisconnected(Extend_OnClientDisconnected)
+    }
+
+    if (file.skipEnabled) {
+        file.commands.append(cmdSkip)
+        AddCallback_OnClientDisconnected(Skip_OnClientDisconnected)
     }
 
     if (file.rollEnabled) {
@@ -827,6 +843,54 @@ void function Extend_OnClientDisconnected(entity player) {
     if (file.extendVoters.contains(player)) {
         file.extendVoters.remove(file.extendVoters.find(player))
         Debug("[Extend_OnClientDisconnected] " + player.GetPlayerName() + " removed from extend voters")
+    }
+}
+
+//------------------------------------------------------------------------------
+// skip
+//------------------------------------------------------------------------------
+bool function CommandSkip(entity player, array<string> args) {
+    if (GetGameState() >= eGameState.WinnerDetermined) {
+        SendMessage(player, Red("match is over already"))
+        return false
+    }
+    
+    if (IsAuthenticatedAdmin(player)) {
+        DoSkip()
+        return true
+    }
+
+    if (file.skipVoters.len() == 0) {
+        file.skipThreshold = Threshold(GetPlayerArray().len(), file.skipPercentage)
+    }
+
+    if (!file.skipVoters.contains(player)) {
+        file.skipVoters.append(player)
+    }
+
+    if (file.skipVoters.len() >= file.skipThreshold) {
+        DoSkip()
+    } else {
+        int remainingVotes = file.skipThreshold - file.skipVoters.len()
+        AnnounceMessage(Purple(player.GetPlayerName() + " wants to skip the current map, " + remainingVotes + " more vote(s) required"))
+    }
+
+    return true
+}
+
+void function DoSkip() {
+    float endTime = Time() + 10.0
+    SetServerVar("gameEndTime", endTime)
+
+    AnnounceMessage(Purple("current map has been skipped"))
+
+    file.skipVoters.clear()
+}
+
+void function Skip_OnClientDisconnected(entity player) {
+    if (file.skipVoters.contains(player)) {
+        file.skipVoters.remove(file.skipVoters.find(player))
+        Debug("[Skip_OnClientDisconnected] " + player.GetPlayerName() + " removed from skip voters")
     }
 }
 

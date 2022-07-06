@@ -2,7 +2,8 @@
     "Name": "fvnkhead.mod",
     "Description": "fvnkhead's server mod",
     "Version": "1.0.0",
-    "LoadPriority": 1,
+    "LoadPriority": 0,
+    "RequiredOnClient": false,
     "ConVars": [
         {
             "Name": "fm_debug_enabled",

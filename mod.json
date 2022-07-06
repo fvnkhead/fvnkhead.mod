@@ -102,6 +102,19 @@
         },
 
         {
+            "Name": "fm_extend_enabled",
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_extend_percentage",
+            "DefaultValue": "0.5"
+        },
+        {
+            "Name": "fm_extend_minutes",
+            "DefaultValue": "10"
+        },
+
+        {
             "Name": "fm_roll_enabled",
             "DefaultValue": "1"
         }

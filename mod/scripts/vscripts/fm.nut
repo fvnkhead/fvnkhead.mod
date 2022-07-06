@@ -74,8 +74,14 @@ struct {
     float balancePercentage
     int balanceMinPlayers
     int balanceThreshold
-    array<string> balanceVotedPlayers
+    array<string> balanceVoters
     bool balancePostmatch
+
+    bool extendEnabled
+    float extendPercentage
+    int extendMinutes
+    int extendThreshold
+    array<entity> extendVoters
 
     bool rollEnabled
 
@@ -138,8 +144,15 @@ void function fm_Init() {
     file.balancePercentage = GetConVarFloat("fm_balance_percentage")
     file.balanceMinPlayers = GetConVarInt("fm_balance_min_players")
     file.balanceThreshold = 0
-    file.balanceVotedPlayers = []
+    file.balanceVoters = []
     file.balancePostmatch = GetConVarBool("fm_balance_postmatch")
+
+    // extend
+    file.extendEnabled = GetConVarBool("fm_extend_enabled")
+    file.extendPercentage = GetConVarFloat("fm_extend_percentage")
+    file.extendMinutes = GetConVarInt("fm_extend_minutes")
+    file.extendThreshold = 0
+    file.extendVoters = []
 
     // roll
     file.rollEnabled = GetConVarBool("fm_roll_enabled")
@@ -152,6 +165,7 @@ void function fm_Init() {
     CommandInfo cmdMaps    = NewCommandInfo("!maps",    CommandMaps,    0, 0, false, false, "!maps => list available maps")
     CommandInfo cmdNextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, 3, false, false, "!nextmap <full or partial map name> => vote for next map")
     CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, 0, false, false, "!balance => vote for team balance")
+    CommandInfo cmdExtend  = NewCommandInfo("!extend",  CommandExtend,  0, 0, false, false, "!extend => vote to extend map time")
     CommandInfo cmdRoll    = NewCommandInfo("!roll",    CommandRoll,    0, 0, false, false, "!roll => roll a number between 1 and 100")
 
     if (file.welcomeEnabled) {
@@ -189,10 +203,16 @@ void function fm_Init() {
 
     if (file.balanceEnabled && !IsFFAGame()) {
         file.commands.append(cmdBalance)
+        AddCallback_OnClientDisconnected(Balance_OnClientDisconnected)
     }
 
     if (file.balancePostmatch && !IsFFAGame()) {
         AddCallback_GameStateEnter(eGameState.Postmatch, Balance_Postmatch)
+    }
+
+    if (file.extendEnabled) {
+        file.commands.append(cmdExtend)
+        AddCallback_OnClientDisconnected(Extend_OnClientDisconnected)
     }
 
     if (file.rollEnabled) {
@@ -687,7 +707,7 @@ void function NextMap_OnClientDisconnected(entity player) {
 // balance
 //------------------------------------------------------------------------------
 bool function CommandBalance(entity player, array<string> args) {
-    Debug("[CommandBalance] balance by " + player.GetPlayerName() + ", balance voters: " + file.balanceVotedPlayers.len() + ", threshold: " + file.balanceThreshold + ", percentage: " + file.balancePercentage)
+    Debug("[CommandBalance] balance by " + player.GetPlayerName() + ", balance voters: " + file.balanceVoters.len() + ", threshold: " + file.balanceThreshold + ", percentage: " + file.balancePercentage)
     string playerUid = player.GetUID()
 
     if (IsAuthenticatedAdmin(player)) {
@@ -701,20 +721,20 @@ bool function CommandBalance(entity player, array<string> args) {
         return false
     }
 
-    if (file.balanceVotedPlayers.len() == 0) {
+    if (file.balanceVoters.len() == 0) {
         file.balanceThreshold = int(GetPlayerArray().len() * file.balancePercentage)
         Debug("[CommandBalance] setting balance threshold to " + file.balanceThreshold)
     }
 
-    if (!file.balanceVotedPlayers.contains(playerUid)) {
-        file.balanceVotedPlayers.append(playerUid)
+    if (!file.balanceVoters.contains(playerUid)) {
+        file.balanceVoters.append(playerUid)
     }
 
-    if (file.balanceVotedPlayers.len() >= file.balanceThreshold) {
-        Debug("[CommandBalance] balance voters: " + file.balanceVotedPlayers.len())
+    if (file.balanceVoters.len() >= file.balanceThreshold) {
+        Debug("[CommandBalance] balance voters: " + file.balanceVoters.len())
         DoBalance()
     } else {
-        int remainingVotes = file.balanceThreshold - file.balanceVotedPlayers.len()
+        int remainingVotes = file.balanceThreshold - file.balanceVoters.len()
         Debug("[CommandBalance] remaining balance votes: " + remainingVotes)
         AnnounceMessage(Purple(player.GetPlayerName() + " wants team balance, " + remainingVotes + " more vote(s) required"))
     }
@@ -748,9 +768,9 @@ void function DoBalance() {
         }
     }
 
-    file.balanceVotedPlayers.clear()
-
     AnnounceMessage(Purple("teams have been balanced by k/d"))
+
+    file.balanceVoters.clear()
 }
 
 int function PlayerScoreSort(PlayerScore a, PlayerScore b) {
@@ -763,6 +783,57 @@ int function PlayerScoreSort(PlayerScore a, PlayerScore b) {
 
 void function Balance_Postmatch() {
     DoBalance()
+}
+
+void function Balance_OnClientDisconnected(entity player) {
+    if (file.balanceVoters.contains(player.GetUID())) {
+        file.balanceVoters.remove(file.balanceVoters.find(player.GetUID()))
+        Debug("[Balance_OnClientDisconnected] " + player.GetPlayerName() + "removed from balance voters")
+    }
+}
+
+//------------------------------------------------------------------------------
+// extend
+//------------------------------------------------------------------------------
+bool function CommandExtend(entity player, array<string> args) {
+    if (IsAuthenticatedAdmin(player)) {
+        DoExtend()
+        return true
+    }
+
+    if (file.extendVoters.len() == 0) {
+        file.extendThreshold = int(GetPlayerArray().len() * file.extendPercentage)
+    }
+
+    if (!file.extendVoters.contains(player)) {
+        file.extendVoters.append(player)
+    }
+
+    if (file.extendVoters.len() >= file.extendThreshold) {
+        DoExtend()
+    } else {
+        int remainingVotes = file.extendThreshold - file.extendVoters.len()
+        AnnounceMessage(Purple(player.GetPlayerName() + " wants to extend the map, " + remainingVotes + " more vote(s) required"))
+    }
+
+    return true
+}
+
+void function DoExtend() {
+    float currentEndTime = expect float(GetServerVar("gameEndTime"))
+    float newEndTime = currentEndTime + (60 * file.extendMinutes)
+    SetServerVar("gameEndTime", newEndTime)
+
+    AnnounceMessage(Purple("map has been extended"))
+
+    file.extendVoters.clear()
+}
+
+void function Extend_OnClientDisconnected(entity player) {
+    if (file.extendVoters.contains(player)) {
+        file.extendVoters.remove(file.extendVoters.find(player))
+        Debug("[Extend_OnClientDisconnected] " + player.GetPlayerName() + "removed from extend voters")
+    }
 }
 
 //------------------------------------------------------------------------------

@@ -184,7 +184,7 @@ void function fm_Init() {
     CommandInfo cmdRoll    = NewCommandInfo("!roll",    CommandRoll,    0, 0,  false, false, "!roll => roll a number between 1 and 100")
     // admin commands
     CommandInfo cmdAuth    = NewCommandInfo("!auth",    CommandAuth,    1, 1,  true,  true,  "!auth <password> => authenticate yourself as an admin")
-    CommandInfo cmdYell    = NewCommandInfo("!yell",    CommandYell,    1, -1, false, true,  "!yell ... => yell something")
+    CommandInfo cmdYell    = NewCommandInfo("!yell",    CommandYell,    1, -1, true,  true,  "!yell ... => yell something")
 
     if (file.welcomeEnabled) {
         AddCallback_OnPlayerRespawned(Welcome_OnPlayerRespawned)

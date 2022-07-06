@@ -456,7 +456,7 @@ bool function CommandKick(entity player, array<string> args) {
         KickInfo kickInfo
         kickInfo.voters = []
         kickInfo.voters.append(player)
-        kickInfo.threshold = int(GetPlayerArray().len() * file.kickPercentage)
+        kickInfo.threshold = Threshold(GetPlayerArray().len(), file.kickPercentage)
         file.kickTable[targetUid] <- kickInfo
     }
 
@@ -722,7 +722,7 @@ bool function CommandBalance(entity player, array<string> args) {
     }
 
     if (file.balanceVoters.len() == 0) {
-        file.balanceThreshold = int(GetPlayerArray().len() * file.balancePercentage)
+        file.balanceThreshold = Threshold(GetPlayerArray().len(), file.balancePercentage)
         Debug("[CommandBalance] setting balance threshold to " + file.balanceThreshold)
     }
 
@@ -802,7 +802,7 @@ bool function CommandExtend(entity player, array<string> args) {
     }
 
     if (file.extendVoters.len() == 0) {
-        file.extendThreshold = int(GetPlayerArray().len() * file.extendPercentage)
+        file.extendThreshold = Threshold(GetPlayerArray().len(), file.extendPercentage)
     }
 
     if (!file.extendVoters.contains(player)) {
@@ -882,6 +882,10 @@ string function Join(array<string> list, string separator) {
     }
 
     return s
+}
+
+int function Threshold(int count, float percentage) {
+    return int(ceil(count * percentage))
 }
 
 void function SendMessage(entity player, string text) {

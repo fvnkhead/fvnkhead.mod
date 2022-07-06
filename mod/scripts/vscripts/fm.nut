@@ -705,18 +705,15 @@ bool function CommandBalance(entity player, array<string> args) {
         return false
     }
 
-    if (file.balanceVotedPlayers.contains(playerUid)) {
-        Debug("[CommandBalance] " + player.GetPlayerName() + "already balance voted")
-        SendMessage(player, Red("you have already voted for balance"))
-        return false
-    }
-
     if (file.balanceVotedPlayers.len() == 0) {
         file.balanceThreshold = int(GetPlayerArray().len() * file.balancePercentage)
         Debug("[CommandBalance] setting balance threshold to " + file.balanceThreshold)
     }
 
-    file.balanceVotedPlayers.append(playerUid)
+    if (!file.balanceVotedPlayers.contains(playerUid)) {
+        file.balanceVotedPlayers.append(playerUid)
+    }
+
     if (file.balanceVotedPlayers.len() >= file.balanceThreshold) {
         Debug("[CommandBalance] balance voters: " + file.balanceVotedPlayers.len())
         DoBalance()

@@ -43,8 +43,6 @@ struct CustomCommand {
 struct {
     bool debugEnabled
 
-    table<entity, int> playerSwitchTable
-
     array<string> adminUids
     bool adminAuthEnabled
     string adminPassword
@@ -103,10 +101,6 @@ struct {
 //------------------------------------------------------------------------------
 void function fm_Init() {
     file.debugEnabled = GetConVarBool("fm_debug_enabled")
-
-    file.playerSwitchTable = {}
-    AddCallback_OnPlayerKilled(OnPlayerKilled_CheckPlayerSwitch)
-    AddCallback_OnPlayerRespawned(OnPlayerRespawned_CheckPlayerSwitch)
 
     // admins
     array<string> adminUids = split(GetConVarString("fm_admin_uids"), ",")
@@ -369,38 +363,6 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 
     Debug("[ChatCallback] ----- END -----")
     return messageInfo
-}
-
-//------------------------------------------------------------------------------
-// team changing (for !balance and !switch)
-//------------------------------------------------------------------------------
-void function OnPlayerRespawned_CheckPlayerSwitch(entity player) {
-    if (!(player in file.playerSwitchTable)) {
-        return
-    }
-
-    int oldTeam = player.GetTeam()
-    int newTeam = file.playerSwitchTable[player]
-    if (oldTeam != newTeam) {
-        SetTeam(player, newTeam)
-        SendMessage(player, Blue("your team has been switched"))
-    }
-
-    delete file.playerSwitchTable[player]
-}
-
-void function OnPlayerKilled_CheckPlayerSwitch(entity victim, entity attacker, var damageInfo) {
-    OnPlayerRespawned_CheckPlayerSwitch(victim)
-}
-
-void function AddToSwitchTable(entity player, int newTeam) {
-    int oldTeam = player.GetTeam()
-    if (oldTeam == newTeam) {
-        return
-    }
-
-    file.playerSwitchTable[player] <- newTeam
-    SendMessage(player, Blue("your team will be switched after dying"))
 }
 
 //------------------------------------------------------------------------------
@@ -786,7 +748,7 @@ bool function CommandBalance(entity player, array<string> args) {
     Debug("[CommandBalance] balance by " + player.GetPlayerName() + ", balance voters: " + file.balanceVoters.len() + ", threshold: " + file.balanceThreshold + ", percentage: " + file.balancePercentage)
     if (IsAuthenticatedAdmin(player)) {
         Debug("[CommandBalance] admin balance by " + player.GetPlayerName())
-        DoDelayedBalance()
+        DoBalance()
         return true
     }
 
@@ -797,6 +759,7 @@ bool function CommandBalance(entity player, array<string> args) {
 
     if (file.balanceVoters.len() == 0) {
         file.balanceThreshold = Threshold(GetPlayerArray().len(), file.balancePercentage)
+        Debug("[CommandBalance] setting balance threshold to " + file.balanceThreshold)
     }
 
     if (!file.balanceVoters.contains(player)) {
@@ -804,41 +767,50 @@ bool function CommandBalance(entity player, array<string> args) {
     }
 
     if (file.balanceVoters.len() >= file.balanceThreshold) {
-        DoDelayedBalance()
+        Debug("[CommandBalance] balance voters: " + file.balanceVoters.len())
+        DoBalance()
     } else {
         int remainingVotes = file.balanceThreshold - file.balanceVoters.len()
+        Debug("[CommandBalance] remaining balance votes: " + remainingVotes)
         AnnounceMessage(Purple(player.GetPlayerName() + " wants team balance, " + remainingVotes + " more vote(s) required"))
     }
 
     return true
 }
 
-void function DoBalance(bool delayed = false) {
-    if (delayed) {
-        AnnounceMessage(Purple("teams are being balanced"))
-    }
-
+void function DoBalance() {
+    Debug("[DoBalance] balancing teams")
     array<entity> players = GetPlayerArray()
-    array<PlayerScore> scores = GetPlayerScores(players)
-    for (int i = 0; i < scores.len(); i++) {
-        entity player = scores[i].player
-        int team = IsEven(i) ? TEAM_IMC : TEAM_MILITIA
-        if (delayed) {
-            AddToSwitchTable(player, team)
-        } else {
-            SetTeam(player, team)
+
+    array<entity> switchablePlayers = []
+    foreach (entity player in players) {
+        if (CanSwitchTeams(player)) {
+            switchablePlayers.append(player)
         }
     }
 
-    if (!delayed) {
-        AnnounceMessage(Purple("teams have been balanced"))
+    array<PlayerScore> scores = GetPlayerScores(switchablePlayers)
+    for (int i = 0; i < scores.len(); i++) {
+        if (IsEven(i)) {
+            SetTeam(scores[i].player, TEAM_IMC)
+        } else {
+            SetTeam(scores[i].player, TEAM_MILITIA)
+        }
     }
+
+    AnnounceMessage(Purple("teams have been balanced"))
 
     file.balanceVoters.clear()
 }
 
-void function DoDelayedBalance() {
-    DoBalance(true)
+bool function CanSwitchTeams(entity player) {
+    // ctf bug, flag can become other team flag so they have 2 flags
+    if (HasFlag(player)) {
+        Debug("[CanSwitchTeams] " + player.GetPlayerName() + " has a flag, can't switch")
+        return false
+    }
+
+    return true
 }
 
 array<PlayerScore> function GetPlayerScores(array<entity> players) {
@@ -1127,4 +1099,25 @@ array<string> function FindMapsBySubstring(string substring) {
     }
 
     return maps
+}
+
+bool function HasFlag(entity player) {
+    array<entity> children = GetChildren(player)
+    foreach (entity childEnt in children) {
+        if (childEnt.GetClassName() == "item_flag") {
+            return true
+        }
+    }
+    return false
+}
+
+array<entity> function GetChildren(entity parentEnt) {
+    entity childEnt = parentEnt.FirstMoveChild()
+    array<entity> children = []
+    while (childEnt != null) {
+        children.append(childEnt)
+        childEnt = childEnt.NextMovePeer()
+    }
+
+    return children
 }

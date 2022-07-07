@@ -92,6 +92,8 @@ struct {
 
     bool slayEnabled
 
+    bool freezeEnabled
+
     bool rollEnabled
 
     bool customCommandsEnabled
@@ -174,6 +176,9 @@ void function fm_Init() {
     // slay
     file.slayEnabled = GetConVarBool("fm_slay_enabled")
 
+    // freeze
+    file.freezeEnabled = GetConVarBool("fm_freeze_enabled")
+
     // roll
     file.rollEnabled = GetConVarBool("fm_roll_enabled")
 
@@ -186,11 +191,12 @@ void function fm_Init() {
     CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, 0,  false, false, "!balance => vote for team balance")
     CommandInfo cmdExtend  = NewCommandInfo("!extend",  CommandExtend,  0, 0,  false, false, "!extend => vote to extend map time")
     CommandInfo cmdSkip    = NewCommandInfo("!skip",    CommandSkip,    0, 0,  false, false, "!skip => vote to skip current map")
-    CommandInfo cmdRoll    = NewCommandInfo("!roll",    CommandRoll,    0, 0,  false, false, "!roll => roll a number between 1 and 100")
+    CommandInfo cmdRoll    = NewCommandInfo("!roll",    CommandRoll,    0, 0,  false, false, "!roll => roll a number between 0 and 100")
     // admin commands
     CommandInfo cmdAuth    = NewCommandInfo("!auth",    CommandAuth,    1, 1,  true,  true,  "!auth <password> => authenticate yourself as an admin")
     CommandInfo cmdYell    = NewCommandInfo("!yell",    CommandYell,    1, -1, true,  true,  "!yell ... => yell something")
-    CommandInfo cmdSlay    = NewCommandInfo("!slay",    CommandSlay,    1, 1,  false, true,  "!slay ... => kill a player")
+    CommandInfo cmdSlay    = NewCommandInfo("!slay",    CommandSlay,    1, 1,  false, true,  "!slay <full or partial player name> => kill a player")
+    CommandInfo cmdFreeze  = NewCommandInfo("!freeze",  CommandFreeze,  1, 1,  false, true,  "!freeze <full or partial player name> => freeze a player")
 
     if (file.welcomeEnabled) {
         AddCallback_OnPlayerRespawned(Welcome_OnPlayerRespawned)
@@ -250,6 +256,10 @@ void function fm_Init() {
 
     if (file.slayEnabled) {
         file.commands.append(cmdSlay)
+    }
+
+    if (file.freezeEnabled) {
+        file.commands.append(cmdFreeze)
     }
 
     if (file.rollEnabled) {
@@ -1024,11 +1034,54 @@ bool function CommandSlay(entity player, array<string> args) {
 }
 
 //------------------------------------------------------------------------------
+// freeze
+//------------------------------------------------------------------------------
+bool function CommandFreeze(entity player, array<string> args) {
+    string playerName = args[0]
+    array<entity> foundPlayers = FindPlayersBySubstring(playerName)
+
+    if (foundPlayers.len() == 0) {
+        SendMessage(player, Red("player '" + playerName + "' not found"))
+        return false
+    }
+
+    if (foundPlayers.len() > 1) {
+        SendMessage(player, Red("multiple matches for player '" + playerName + "', be more specific"))
+        return false
+    }
+
+    entity target = foundPlayers[0]
+    if (!IsAlive(target)) {
+        SendMessage(player, Red(target.GetPlayerName() + " is dead"))
+        return false
+    }
+
+    target.MovementDisable()
+    target.ConsumeDoubleJump()
+    target.DisableWeaponViewModel()
+
+    AnnounceMessage(Purple(target.GetPlayerName() + " has been frozen"))
+
+    return true
+}
+
+//------------------------------------------------------------------------------
 // roll
 //------------------------------------------------------------------------------
 bool function CommandRoll(entity player, array<string> args) {
-    int num = RandomInt(100) + 1
-    AnnounceMessage(Purple(player.GetPlayerName() + " rolled " + num))
+    int num = RandomInt(101)
+    string msg = player.GetPlayerName() + " rolled " + num
+    if (num == 0) {
+        msg += ", what a noob lol"
+    } else if (num == 69) {
+        msg += ", nice"
+    } else if (num == 100) {
+        msg += ", what a " + Red("CHAD")
+    } else {
+        msg += ", meh"
+    }
+
+    AnnounceMessage(Purple(msg))
     return true
 }
 

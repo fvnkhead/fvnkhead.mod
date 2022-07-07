@@ -134,6 +134,11 @@
         },
 
         {
+            "Name": "fm_freeze_enabled",
+            "DefaultValue": "1"
+        },
+
+        {
             "Name": "fm_roll_enabled",
             "DefaultValue": "1"
         }

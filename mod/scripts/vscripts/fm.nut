@@ -1018,7 +1018,7 @@ bool function CommandSlay(entity player, array<string> args) {
     }
 
     target.Die()
-    AnnounceMessage(Purple(player.GetPlayerName() + " has been slain"))
+    AnnounceMessage(Purple(target.GetPlayerName() + " has been slain"))
 
     return true
 }

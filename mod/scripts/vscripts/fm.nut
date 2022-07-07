@@ -90,6 +90,8 @@ struct {
 
     bool yellEnabled
 
+    bool slayEnabled
+
     bool rollEnabled
 
     bool customCommandsEnabled
@@ -169,6 +171,9 @@ void function fm_Init() {
     // yell
     file.yellEnabled = GetConVarBool("fm_yell_enabled")
 
+    // slay
+    file.slayEnabled = GetConVarBool("fm_slay_enabled")
+
     // roll
     file.rollEnabled = GetConVarBool("fm_roll_enabled")
 
@@ -185,6 +190,7 @@ void function fm_Init() {
     // admin commands
     CommandInfo cmdAuth    = NewCommandInfo("!auth",    CommandAuth,    1, 1,  true,  true,  "!auth <password> => authenticate yourself as an admin")
     CommandInfo cmdYell    = NewCommandInfo("!yell",    CommandYell,    1, -1, true,  true,  "!yell ... => yell something")
+    CommandInfo cmdSlay    = NewCommandInfo("!slay",    CommandSlay,    1, 1,  false, true,  "!slay ... => kill a player")
 
     if (file.welcomeEnabled) {
         AddCallback_OnPlayerRespawned(Welcome_OnPlayerRespawned)
@@ -240,6 +246,10 @@ void function fm_Init() {
 
     if (file.yellEnabled) {
         file.commands.append(cmdYell)
+    }
+
+    if (file.slayEnabled) {
+        file.commands.append(cmdSlay)
     }
 
     if (file.rollEnabled) {
@@ -981,6 +991,35 @@ void function Skip_OnClientDisconnected(entity player) {
 bool function CommandYell(entity player, array<string> args) {
     string msg = Join(args, " ")
     AnnounceHUD(msg, 255, 0, 0)
+    return true
+}
+
+//------------------------------------------------------------------------------
+// slay
+//------------------------------------------------------------------------------
+bool function CommandSlay(entity player, array<string> args) {
+    string playerName = args[0]
+    array<entity> foundPlayers = FindPlayersBySubstring(playerName)
+
+    if (foundPlayers.len() == 0) {
+        SendMessage(player, Red("player '" + playerName + "' not found"))
+        return false
+    }
+
+    if (foundPlayers.len() > 1) {
+        SendMessage(player, Red("multiple matches for player '" + playerName + "', be more specific"))
+        return false
+    }
+
+    entity target = foundPlayers[0]
+    if (!IsAlive(target)) {
+        SendMessage(player, Red(target.GetPlayerName() + " is already dead"))
+        return false
+    }
+
+    target.Die()
+    AnnounceMessage(Purple(player.GetPlayerName() + " has been slain"))
+
     return true
 }
 

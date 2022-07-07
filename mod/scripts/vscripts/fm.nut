@@ -1088,7 +1088,9 @@ int function Threshold(int count, float percentage) {
 }
 
 void function SendMessage(entity player, string text) {
-    Chat_ServerPrivateMessage(player, text, false)
+    thread AsyncSendMessage(player, text)
+    // TODO: testing
+    //Chat_ServerPrivateMessage(player, text, false)
 }
 
 void function AsyncSendMessage(entity player, string text) {
@@ -1097,12 +1099,17 @@ void function AsyncSendMessage(entity player, string text) {
 }
 
 void function AnnounceMessage(string text) {
-    Chat_ServerBroadcast(text)
+    AsyncAnnounceMessage(text)
+    // TODO: testing
+    //Chat_ServerBroadcast(text)
 }
 
 void function AsyncAnnounceMessage(string text) {
-    wait 0.1
-    Chat_ServerBroadcast(text)
+    foreach (entity player in GetPlayerArray()) {
+        SendMessage(player, text)
+    }
+    // TODO: testing
+    //Chat_ServerBroadcast(text)
 }
 
 void function SendHUD(entity player, string msg, int r, int g, int b, int time = 10) {

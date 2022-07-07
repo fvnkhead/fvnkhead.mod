@@ -24,7 +24,7 @@ struct KickInfo {
 
 struct PlayerScore {
     entity player
-    float kd
+    float val
 }
 
 struct NextMapScore {
@@ -780,23 +780,17 @@ bool function CommandBalance(entity player, array<string> args) {
 
 void function DoBalance() {
     Debug("[DoBalance] balancing teams")
-    array<PlayerScore> scores
-    foreach (entity player in GetPlayerArray()) {
-        PlayerScore score
-        score.player = player
-        int kills = player.GetPlayerGameStat(PGS_KILLS)
-        int deaths = player.GetPlayerGameStat(PGS_DEATHS)
-        if (deaths == 0) {
-            deaths = 1
-        }
+    array<entity> players = GetPlayerArray()
 
-        score.kd = float(kills) / float(deaths)
-        scores.append(score)
+    array<entity> switchablePlayers = []
+    foreach (entity player in players) {
+        if (CanSwitchTeams(player)) {
+            switchablePlayers.append(player)
+        }
     }
 
-    scores.sort(PlayerScoreSort)
-    
-    for (int i = 0; i < GetPlayerArray().len(); i++) {
+    array<PlayerScore> scores = GetPlayerScores(switchablePlayers)
+    for (int i = 0; i < scores.len(); i++) {
         if (IsEven(i)) {
             SetTeam(scores[i].player, TEAM_IMC)
         } else {
@@ -804,17 +798,71 @@ void function DoBalance() {
         }
     }
 
-    AnnounceMessage(Purple("teams have been balanced by k/d"))
+    AnnounceMessage(Purple("teams have been balanced"))
 
     file.balanceVoters.clear()
 }
 
+bool function CanSwitchTeams(entity player) {
+    // ctf bug, flag can become other team flag so they have 2 flags
+    if (HasFlag(player)) {
+        Debug("[CanSwitchTeams] " + player.GetPlayerName() + " has a flag, can't switch")
+        return false
+    }
+
+    return true
+}
+
+array<PlayerScore> function GetPlayerScores(array<entity> players) {
+    array<PlayerScore> scores
+    foreach (entity player in players) {
+        PlayerScore score
+        score.player = player
+        score.val = CalculatePlayerScore(player)
+        scores.append(score)
+    }
+
+    scores.sort(PlayerScoreSort)
+
+    return scores
+}
+
+float function CalculatePlayerScore(entity player) {
+    if (GameRules_GetGameMode() == CAPTURE_THE_FLAG) {
+        return CalculateCTFScore(player)
+    }
+
+    return CalculateKDScore(player)
+}
+
+float function CalculateCTFScore(entity player) {
+    int captureWeight = 10
+    int returnWeight = 5
+
+    int captures = player.GetPlayerGameStat(PGS_ASSAULT_SCORE)
+    int returns = player.GetPlayerGameStat(PGS_DEFENSE_SCORE)
+    int kills = player.GetPlayerGameStat(PGS_KILLS)
+    float score = float((captures * captureWeight) + (returns + returnWeight) + kills)
+    Debug("[CalculateCTFScore] " + player.GetPlayerName() + " = " + score)
+    return score
+}
+
+float function CalculateKDScore(entity player) {
+    int kills = player.GetPlayerGameStat(PGS_KILLS)
+    int deaths = player.GetPlayerGameStat(PGS_DEATHS)
+    if (deaths == 0) {
+        deaths = 1
+    }
+
+    return float(kills) / float(deaths)
+}
+
 int function PlayerScoreSort(PlayerScore a, PlayerScore b) {
-    if (a.kd == b.kd) {
+    if (a.val == b.val) {
         return 0
     }
 
-    return a.kd < b.kd ? -1 : 1
+    return a.val < b.val ? 1 : -1
 }
 
 void function Balance_Postmatch() {
@@ -972,6 +1020,18 @@ string function Purple(string s) {
     return "\x1b[95m" + s
 }
 
+bool function IsAdmin(entity player) {
+    return file.adminUids.contains(player.GetUID())
+}
+
+bool function IsAuthenticatedAdmin(entity player) {
+    if (file.adminAuthEnabled) {
+        return IsAdmin(player) && file.authenticatedAdmins.contains(player.GetUID())
+    }
+
+    return IsAdmin(player)
+}
+
 string function Join(array<string> list, string separator) {
     string s = ""
     for (int i = 0; i < list.len(); i++) {
@@ -1041,14 +1101,23 @@ array<string> function FindMapsBySubstring(string substring) {
     return maps
 }
 
-bool function IsAdmin(entity player) {
-    return file.adminUids.contains(player.GetUID())
+bool function HasFlag(entity player) {
+    array<entity> children = GetChildren(player)
+    foreach (entity childEnt in children) {
+        if (childEnt.GetClassName() == "item_flag") {
+            return true
+        }
+    }
+    return false
 }
 
-bool function IsAuthenticatedAdmin(entity player) {
-    if (file.adminAuthEnabled) {
-        return IsAdmin(player) && file.authenticatedAdmins.contains(player.GetUID())
+array<entity> function GetChildren(entity parentEnt) {
+    entity childEnt = parentEnt.FirstMoveChild()
+    array<entity> children = []
+    while (childEnt != null) {
+        children.append(childEnt)
+        childEnt = childEnt.NextMovePeer()
     }
 
-    return IsAdmin(player)
+    return children
 }

@@ -632,11 +632,11 @@ bool function CommandNextMap(entity player, array<string> args) {
 }
 
 void function PostmatchChangeMap() {
-    thread DoChangeMap()
+    thread DoChangeMap(GAME_POSTMATCH_LENGTH - 1)
 }
 
-void function DoChangeMap() {
-    wait GAME_POSTMATCH_LENGTH - 1
+void function DoChangeMap(float waitTime) {
+    wait waitTime
 
     string nextMap = GetUsualNextMap()
     if (file.nextMapEnabled) {
@@ -905,12 +905,19 @@ bool function CommandSkip(entity player, array<string> args) {
 }
 
 void function DoSkip() {
-    float endTime = Time() + 10.0
-    SetServerVar("gameEndTime", endTime)
-
-    AnnounceMessage(Purple("current map has been skipped"))
-
+    float waitTime = 5.0
+    thread SkipAnnounceLoop(waitTime)
+    thread DoChangeMap(waitTime)
     file.skipVoters.clear()
+}
+
+void function SkipAnnounceLoop(float waitTime) {
+    int seconds = int(waitTime)
+    AnnounceMessage(Purple("current map will be skipped in " + seconds + "..."))
+    for (int i = seconds - 1; i > 0; i--) {
+        wait 1.0
+        AnnounceMessage(Purple(i + "..."))
+    }
 }
 
 void function Skip_OnClientDisconnected(entity player) {

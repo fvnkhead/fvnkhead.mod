@@ -1148,6 +1148,11 @@ void function SendMessage(entity player, string text) {
 
 void function AsyncSendMessage(entity player, string text) {
     wait 0.1
+
+    if (!IsValid(player)) {
+        return
+    }
+
     Chat_ServerPrivateMessage(player, text, false)
 }
 

@@ -811,10 +811,12 @@ void function DoBalance() {
 
     array<PlayerScore> scores = GetPlayerScores(switchablePlayers)
     for (int i = 0; i < scores.len(); i++) {
-        if (IsEven(i)) {
-            SetTeam(scores[i].player, TEAM_IMC)
-        } else {
-            SetTeam(scores[i].player, TEAM_MILITIA)
+        entity player = scores[i].player
+        int oldTeam = player.GetTeam()
+        int newTeam = IsEven(i) ? TEAM_IMC : TEAM_MILITIA
+        SetTeam(player, newTeam)
+        if (newTeam != oldTeam) {
+            SendMessage(player, Blue("your team has been switched"))
         }
     }
 

@@ -69,6 +69,8 @@ struct {
     array<string> maps
     bool nextMapEnabled
     table<entity, string> nextMapVoteTable
+    bool nextMapHintEnabled
+    array<string> nextMapHintedPlayers
 
     bool switchEnabled
     int switchDiff
@@ -155,6 +157,8 @@ void function fm_Init() {
     }
     file.nextMapEnabled = GetConVarBool("fm_nextmap_enabled")
     file.nextMapVoteTable = {}
+    file.nextMapHintEnabled = GetConVarBool("fm_nextmap_hint_enabled")
+    file.nextMapHintedPlayers = []
 
     // switch
     file.switchEnabled = GetConVarBool("fm_switch_enabled")
@@ -242,6 +246,9 @@ void function fm_Init() {
             file.commands.append(cmdNextMap)
             AddCallback_GameStateEnter(eGameState.WinnerDetermined, NextMap_OnWinnerDetermined)
             AddCallback_OnClientDisconnected(NextMap_OnClientDisconnected)
+            if (file.nextMapHintEnabled) {
+                AddCallback_OnPlayerRespawned(NextMapHint_OnPlayerRespawned)
+            }
         }
     }
 
@@ -777,6 +784,21 @@ void function NextMap_OnClientDisconnected(entity player) {
         delete file.nextMapVoteTable[player]
         Debug("[NextMap_OnClientDisconnected] " + player.GetPlayerName() + " removed from next map vote table")
     }
+}
+
+void function NextMapHint_OnPlayerRespawned(entity player) {
+    string uid = player.GetUID()
+    if (file.nextMapHintedPlayers.contains(uid)) {
+        return
+    }
+
+    float endTime = expect float(GetServerVar("roundEndTime"))
+    if (Time() < endTime / 2.0) {
+        return
+    }
+
+    SendMessage(player, Blue("hint: you can use !nextmap to vote for the next map"))
+    file.nextMapHintedPlayers.append(uid)
 }
 
 //------------------------------------------------------------------------------

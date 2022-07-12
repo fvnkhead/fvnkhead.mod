@@ -83,6 +83,10 @@
             "Name": "fm_nextmap_enabled",
             "DefaultValue": "1"
         },
+        {
+            "Name": "fm_nextmap_hint_enabled",
+            "DefaultValue": "1"
+        },
 
         {
             "Name": "fm_switch_enabled",

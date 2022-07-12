@@ -85,6 +85,23 @@
         },
 
         {
+            "Name": "fm_switch_enabled",
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_switch_diff",
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_switch_limit",
+            "DefaultValue": "3"
+        },
+        {
+            "Name": "fm_switch_kill",
+            "DefaultValue": "1"
+        },
+
+        {
             "Name": "fm_balance_enabled",
             "DefaultValue": "1"
         },

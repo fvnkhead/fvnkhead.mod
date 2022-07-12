@@ -70,6 +70,12 @@ struct {
     bool nextMapEnabled
     table<entity, string> nextMapVoteTable
 
+    bool switchEnabled
+    int switchDiff
+    int switchLimit
+    bool switchKill
+    table<string, int> switchCountTable
+
     bool balanceEnabled
     float balancePercentage
     int balanceMinPlayers
@@ -150,6 +156,13 @@ void function fm_Init() {
     file.nextMapEnabled = GetConVarBool("fm_nextmap_enabled")
     file.nextMapVoteTable = {}
 
+    // switch
+    file.switchEnabled = GetConVarBool("fm_switch_enabled")
+    file.switchDiff = GetConVarInt("fm_switch_diff")
+    file.switchLimit = GetConVarInt("fm_switch_limit")
+    file.switchKill = GetConVarBool("fm_switch_kill")
+    file.switchCountTable = {}
+
     // balance
     file.balanceEnabled = GetConVarBool("fm_balance_enabled")
     file.balancePercentage = GetConVarFloat("fm_balance_percentage")
@@ -188,6 +201,7 @@ void function fm_Init() {
     CommandInfo cmdKick    = NewCommandInfo("!kick",    CommandKick,    1, 1,  false, false, "!kick <full or partial player name> => vote to kick a player")
     CommandInfo cmdMaps    = NewCommandInfo("!maps",    CommandMaps,    0, 0,  false, false, "!maps => list available maps")
     CommandInfo cmdNextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, 3,  false, false, "!nextmap <full or partial map name> => vote for next map")
+    CommandInfo cmdSwitch  = NewCommandInfo("!switch",  CommandSwitch,  0, 0,  false, false, "!switch => join opposite team")
     CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, 0,  false, false, "!balance => vote for team balance")
     CommandInfo cmdExtend  = NewCommandInfo("!extend",  CommandExtend,  0, 0,  false, false, "!extend => vote to extend map time")
     CommandInfo cmdSkip    = NewCommandInfo("!skip",    CommandSkip,    0, 0,  false, false, "!skip => vote to skip current map")
@@ -229,6 +243,10 @@ void function fm_Init() {
             AddCallback_GameStateEnter(eGameState.WinnerDetermined, NextMap_OnWinnerDetermined)
             AddCallback_OnClientDisconnected(NextMap_OnClientDisconnected)
         }
+    }
+
+    if (file.switchEnabled && !IsFFAGame()) {
+        file.commands.append(cmdSwitch)
     }
 
     if (file.balanceEnabled && !IsFFAGame()) {
@@ -759,6 +777,57 @@ void function NextMap_OnClientDisconnected(entity player) {
         delete file.nextMapVoteTable[player]
         Debug("[NextMap_OnClientDisconnected] " + player.GetPlayerName() + " removed from next map vote table")
     }
+}
+
+//------------------------------------------------------------------------------
+// switch
+//------------------------------------------------------------------------------
+bool function CommandSwitch(entity player, array<string> args) {
+    string uid = player.GetUID()
+    if (uid in file.switchCountTable) {
+        int switchCount = file.switchCountTable[uid]
+        if (switchCount >= file.switchLimit) {
+            SendMessage(player, Red("you've switched teams enough"))
+            return false
+        }
+    }
+
+    // ctf
+    if (!file.switchKill && HasFlag(player)) {
+        SendMessage(player, Red("can't switch while you're holding the flag"))
+        return false
+    }
+
+    int thisTeam = player.GetTeam()
+    int otherTeam = GetOtherTeam(thisTeam)
+
+    int thisTeamCount = GetPlayerArrayOfTeam(thisTeam).len()
+    int otherTeamCount = GetPlayerArrayOfTeam(otherTeam).len()
+
+    int playerDiff = thisTeamCount - otherTeamCount
+    if (playerDiff < file.switchDiff && otherTeamCount > 0) {
+        SendMessage(player, Red("can't switch, there's enough players on the other team"))
+        return false
+    }
+
+    int switchCount
+    if (uid in file.switchCountTable) {
+        switchCount = file.switchCountTable[uid] + 1
+    } else {
+        switchCount = 1
+    }
+    file.switchCountTable[uid] <- switchCount
+
+    // ctf: if player is holding a flag, he gotta die *before* setting the team
+    if (file.switchKill && IsAlive(player)) {
+        player.Die()
+    }
+
+    SetTeam(player, otherTeam)
+
+    AnnounceMessage(Purple(player.GetPlayerName() + " has switched teams"))
+
+    return true
 }
 
 //------------------------------------------------------------------------------

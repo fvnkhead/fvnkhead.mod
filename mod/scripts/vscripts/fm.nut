@@ -804,6 +804,8 @@ void function NextMapHint_OnPlayerRespawned(entity player) {
     }
 
     float endTime = expect float(GetServerVar("roundEndTime"))
+    Debug("[NextMapHint_OnPlayerRespawned] endTime = " + endTime)
+    Debug("[NextMapHint_OnPlayerRespawned] Time() = " + Time())
     if (Time() < endTime / 2.0) {
         return
     }

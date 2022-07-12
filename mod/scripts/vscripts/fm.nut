@@ -85,6 +85,9 @@ struct {
     array<entity> balanceVoters
     bool balancePostmatch
 
+    bool autobalanceEnabled
+    int autobalanceDiff
+
     bool extendEnabled
     float extendPercentage
     int extendMinutes
@@ -175,6 +178,10 @@ void function fm_Init() {
     file.balanceVoters = []
     file.balancePostmatch = GetConVarBool("fm_balance_postmatch")
 
+    // autobalance
+    file.autobalanceEnabled = GetConVarBool("fm_autobalance_enabled")
+    file.autobalanceDiff = GetConVarInt("fm_autobalance_diff")
+
     // extend
     file.extendEnabled = GetConVarBool("fm_extend_enabled")
     file.extendPercentage = GetConVarFloat("fm_extend_percentage")
@@ -263,6 +270,10 @@ void function fm_Init() {
 
     if (file.balancePostmatch && !IsFFAGame()) {
         AddCallback_GameStateEnter(eGameState.Postmatch, Balance_Postmatch)
+    }
+
+    if (file.autobalanceEnabled && !IsFFAGame()) {
+        AddCallback_OnClientDisconnected(Autobalance_OnClientDisconnected)
     }
 
     if (file.extendEnabled) {
@@ -987,6 +998,54 @@ void function Balance_OnClientDisconnected(entity player) {
         file.balanceVoters.remove(file.balanceVoters.find(player))
         Debug("[Balance_OnClientDisconnected] " + player.GetPlayerName() + " removed from balance voters")
     }
+}
+
+
+//------------------------------------------------------------------------------
+// autobalance
+//------------------------------------------------------------------------------
+void function Autobalance_OnClientDisconnected(entity player) {
+    int imcCount = GetPlayerArrayOfTeam(TEAM_IMC).len()
+    int militiaCount = GetPlayerArrayOfTeam(TEAM_MILITIA).len()
+
+    int fromTeam
+    int diff
+    if (imcCount == militiaCount) {
+        return
+    } else if (imcCount > militiaCount) {
+        fromTeam = TEAM_IMC
+        diff = imcCount - militiaCount
+    } else {
+        fromTeam = TEAM_MILITIA
+        diff = militiaCount - imcCount
+    }
+
+    Debug("[Autobalance_OnClientDisconnected] diff = " + diff)
+    if (diff < file.autobalanceDiff) {
+        return
+    }
+
+    DoAutobalance(fromTeam)
+}
+
+void function DoAutobalance(int fromTeam) {
+    array<entity> fromPlayers = GetPlayerArrayOfTeam(fromTeam)
+    array<entity> switchablePlayers = []
+    foreach (entity player in fromPlayers) {
+        if (CanSwitchTeams(player)) {
+            switchablePlayers.append(player)
+        }
+    }
+
+    if (switchablePlayers.len() == 0) {
+        return
+    }
+
+    entity player = switchablePlayers[RandomInt(switchablePlayers.len())]
+    int toTeam = GetOtherTeam(fromTeam) 
+    SetTeam(player, toTeam)
+
+    AnnounceMessage(Purple(player.GetPlayerName() + " has been moved to the opposite team due to team size difference"))
 }
 
 //------------------------------------------------------------------------------

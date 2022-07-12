@@ -123,6 +123,15 @@
         },
 
         {
+            "Name": "fm_autobalance_enabled",
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_autobalance_diff",
+            "DefaultValue": "2"
+        },
+
+        {
             "Name": "fm_extend_enabled",
             "DefaultValue": "1"
         },

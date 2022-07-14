@@ -803,7 +803,10 @@ void function NextMapHint_OnPlayerRespawned(entity player) {
         return
     }
 
-    float endTime = expect float(GetServerVar("roundEndTime"))
+    float endTime = expect float(GetServerVar("gameEndTime"))
+    if (GameRules_GetGameMode() == CAPTURE_THE_FLAG) {
+        endTime = expect float(GetServerVar("roundEndTime"))
+    }
     Debug("[NextMapHint_OnPlayerRespawned] endTime = " + endTime)
     Debug("[NextMapHint_OnPlayerRespawned] Time() = " + Time())
     if (Time() < endTime / 2.0) {

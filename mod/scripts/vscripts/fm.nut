@@ -273,7 +273,7 @@ void function fm_Init() {
     }
 
     if (file.autobalanceEnabled && !IsFFAGame()) {
-        AddCallback_OnClientDisconnected(Autobalance_OnClientDisconnected)
+        AddCallback_GameStateEnter(eGameState.Playing, Autobalance_Start)
     }
 
     if (file.extendEnabled) {
@@ -932,16 +932,6 @@ void function DoBalance() {
     file.balanceVoters.clear()
 }
 
-bool function CanSwitchTeams(entity player) {
-    // ctf bug, flag can become other team flag so they have 2 flags
-    if (HasFlag(player)) {
-        Debug("[CanSwitchTeams] " + player.GetPlayerName() + " has a flag, can't switch")
-        return false
-    }
-
-    return true
-}
-
 array<PlayerScore> function GetPlayerScores(array<entity> players) {
     array<PlayerScore> scores
     foreach (entity player in players) {
@@ -1009,7 +999,21 @@ void function Balance_OnClientDisconnected(entity player) {
 //------------------------------------------------------------------------------
 // autobalance
 //------------------------------------------------------------------------------
-void function Autobalance_OnClientDisconnected(entity player) {
+float AUTOBALANCE_INTERVAL = 5.0
+
+void function Autobalance_Start() {
+    Log("starting autobalance loop")
+    thread Autobalance_Loop()
+}
+
+void function Autobalance_Loop() {
+    while (true) {
+        wait AUTOBALANCE_INTERVAL
+        Autobalance_Check()
+    }
+}
+
+void function Autobalance_Check() {
     int imcCount = GetPlayerArrayOfTeam(TEAM_IMC).len()
     int militiaCount = GetPlayerArrayOfTeam(TEAM_MILITIA).len()
 
@@ -1025,11 +1029,14 @@ void function Autobalance_OnClientDisconnected(entity player) {
         diff = militiaCount - imcCount
     }
 
-    Debug("[Autobalance_OnClientDisconnected] diff = " + diff)
     if (diff < file.autobalanceDiff) {
         return
     }
 
+    Debug("[Autobalance_Check] autobalancing teams")
+    Debug("[Autobalance_Check] imcCount = " + imcCount)
+    Debug("[Autobalance_Check] militiaCount = " + militiaCount)
+    Debug("[Autobalance_Check] diff = " + diff)
     DoAutobalance(fromTeam)
 }
 
@@ -1043,6 +1050,7 @@ void function DoAutobalance(int fromTeam) {
     }
 
     if (switchablePlayers.len() == 0) {
+        Debug("[DoAutobalance] no switchable players found")
         return
     }
 
@@ -1050,7 +1058,7 @@ void function DoAutobalance(int fromTeam) {
     int toTeam = GetOtherTeam(fromTeam) 
     SetTeam(player, toTeam)
 
-    AnnounceMessage(Purple(player.GetPlayerName() + " has been moved to the opposite team due to team size difference"))
+    AnnounceMessage(Purple(player.GetPlayerName() + "'s team has been switched due to player difference"))
 }
 
 //------------------------------------------------------------------------------
@@ -1360,6 +1368,16 @@ array<string> function FindMapsBySubstring(string substring) {
     }
 
     return maps
+}
+
+bool function CanSwitchTeams(entity player) {
+    // ctf bug, flag can become other team flag so they have 2 flags
+    if (HasFlag(player)) {
+        Debug("[CanSwitchTeams] " + player.GetPlayerName() + " has a flag, can't switch")
+        return false
+    }
+
+    return true
 }
 
 bool function HasFlag(entity player) {

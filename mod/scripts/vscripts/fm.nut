@@ -110,6 +110,10 @@ struct {
     bool jokePitfallsEnabled
     table<string, int> pitfallTable
 
+    bool jokeMarvinEnabled
+    table<string, int> marvinKillTable
+    int marvinKillsTotal
+
     bool customCommandsEnabled
     array<CustomCommand> customCommands
 } file
@@ -213,6 +217,10 @@ void function fm_Init() {
     file.jokePitfallsEnabled = GetConVarBool("fm_joke_pitfalls_enabled")
     file.pitfallTable = {}
 
+    file.jokeMarvinEnabled = GetConVarBool("fm_joke_marvin_enabled")
+    file.marvinKillTable = {}
+    file.marvinKillsTotal = 0
+
     // add commands and callbacks
     CommandInfo cmdHelp    = NewCommandInfo("!help",    CommandHelp,    0, 0,  false, false, "!help => get help")
     CommandInfo cmdRules   = NewCommandInfo("!rules",   CommandRules,   0, 0,  false, false, "!rules => show rules")
@@ -311,6 +319,10 @@ void function fm_Init() {
 
     if (file.jokePitfallsEnabled) {
         AddCallback_OnPlayerKilled(Pitfalls_OnPlayerKilled)
+    }
+
+    if (file.jokeMarvinEnabled) {
+        AddDeathCallback("npc_marvin", Marvin_DeathCallback)
     }
 
     // custom commands
@@ -1261,13 +1273,13 @@ bool function CommandRoll(entity player, array<string> args) {
 //------------------------------------------------------------------------------
 // pitfall joke
 //------------------------------------------------------------------------------
-
 table<string, string> PITFALL_MAP_SUBJECT_TABLE = {
-    mp_glitch   = "into the pit",
-    mp_wargames = "into the pit",
-    mp_drydock  = "off the map",
-    mp_relic02  = "off the map",
-    mp_complex3 = "off the map"
+    mp_glitch            = "into the pit",
+    mp_wargames          = "into the pit",
+    mp_drydock           = "off the map",
+    mp_relic02           = "off the map",
+    mp_complex3          = "off the map",
+    mp_forwardbase_kodai = "off the map"
 }
 
 void function Pitfalls_OnPlayerKilled(entity victim, entity attacker, var damageInfo) {
@@ -1300,7 +1312,41 @@ void function Pitfalls_OnPlayerKilled(entity victim, entity attacker, var damage
     }
 
     AnnounceMessage(Purple(msg))
+
     file.pitfallTable[playerName] <- count
+}
+
+//------------------------------------------------------------------------------
+// marvin joke
+//------------------------------------------------------------------------------
+void function Marvin_DeathCallback(entity victim, var damageInfo) {
+    entity attacker = DamageInfo_GetAttacker(damageInfo)
+    if (!IsValid(attacker) || !attacker.IsPlayer()) {
+        return
+    }
+
+    file.marvinKillsTotal += 1
+
+    string playerName = attacker.GetPlayerName()
+    int count = 1
+    if (playerName in file.marvinKillTable) {
+        count = file.marvinKillTable[playerName] + 1
+    }
+
+    string msg = playerName + " has killed " + count + " marvins"
+    if (count == 1) {
+        msg = playerName + " killed a marvin"
+    } else if (count == 2) {
+        msg = playerName + " killed a marvin, again"
+    } else if (count >= 5) {
+        msg = playerName + " killed all the marvins >:("
+    } else if (file.marvinKillsTotal >= 5) {
+        msg = "all the marvins have been killed :("
+    }
+
+    AnnounceMessage(Purple(msg))
+
+    file.marvinKillTable[playerName] <- count
 }
 
 //------------------------------------------------------------------------------

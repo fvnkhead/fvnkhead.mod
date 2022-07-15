@@ -922,9 +922,6 @@ void function DoBalance() {
         int oldTeam = player.GetTeam()
         int newTeam = IsEven(i) ? TEAM_IMC : TEAM_MILITIA
         SetTeam(player, newTeam)
-        if (newTeam != oldTeam) {
-            SendMessage(player, Blue("your team has been switched"))
-        }
     }
 
     AnnounceMessage(Purple("teams have been balanced"))

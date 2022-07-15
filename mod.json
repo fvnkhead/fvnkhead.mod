@@ -6,7 +6,7 @@
     "RequiredOnClient": false,
     "ConVars": [
         {
-            "Name": "fm_debug_enabled",
+            "Name": "fm_debug_enabled", 
             "DefaultValue": "1"
         },
 
@@ -170,6 +170,11 @@
 
         {
             "Name": "fm_roll_enabled",
+            "DefaultValue": "1"
+        },
+
+        {
+            "Name": "fm_joke_pitfalls_enabled",
             "DefaultValue": "1"
         }
     ],

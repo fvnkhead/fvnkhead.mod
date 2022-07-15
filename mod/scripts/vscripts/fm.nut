@@ -107,6 +107,9 @@ struct {
 
     bool rollEnabled
 
+    bool jokePitfallsEnabled
+    table<string, int> pitfallTable
+
     bool customCommandsEnabled
     array<CustomCommand> customCommands
 } file
@@ -206,6 +209,10 @@ void function fm_Init() {
     // roll
     file.rollEnabled = GetConVarBool("fm_roll_enabled")
 
+    // jokes
+    file.jokePitfallsEnabled = GetConVarBool("fm_joke_pitfalls_enabled")
+    file.pitfallTable = {}
+
     // add commands and callbacks
     CommandInfo cmdHelp    = NewCommandInfo("!help",    CommandHelp,    0, 0,  false, false, "!help => get help")
     CommandInfo cmdRules   = NewCommandInfo("!rules",   CommandRules,   0, 0,  false, false, "!rules => show rules")
@@ -300,6 +307,10 @@ void function fm_Init() {
 
     if (file.rollEnabled) {
         file.commands.append(cmdRoll)
+    }
+
+    if (file.jokePitfallsEnabled) {
+        AddCallback_OnPlayerKilled(Pitfalls_OnPlayerKilled)
     }
 
     // custom commands
@@ -613,7 +624,7 @@ void function Kick_OnClientDisconnected(entity player) {
 //------------------------------------------------------------------------------
 // maps
 //------------------------------------------------------------------------------
-table<string, string> mapNameTable = {
+table<string, string> MAP_NAME_TABLE = {
     mp_angel_city = "Angel City",
     mp_black_water_canal = "Black Water Canal",
     mp_coliseum = "Coliseum",
@@ -640,11 +651,11 @@ table<string, string> mapNameTable = {
 }
 
 string function MapName(string map) {
-    return mapNameTable[map].tolower()
+    return MAP_NAME_TABLE[map].tolower()
 }
 
 bool function IsValidMap(string map) {
-    return map in mapNameTable
+    return map in MAP_NAME_TABLE
 }
 
 string function MapsString() {
@@ -1248,6 +1259,51 @@ bool function CommandRoll(entity player, array<string> args) {
 }
 
 //------------------------------------------------------------------------------
+// pitfall joke
+//------------------------------------------------------------------------------
+
+table<string, string> PITFALL_MAP_SUBJECT_TABLE = {
+    mp_glitch   = "into the pit",
+    mp_wargames = "into the pit",
+    mp_drydock  = "off the map",
+    mp_relic02  = "off the map",
+    mp_complex3 = "off the map"
+}
+
+void function Pitfalls_OnPlayerKilled(entity victim, entity attacker, var damageInfo) {
+    string map = GetMapName()
+    if (!(map in PITFALL_MAP_SUBJECT_TABLE)) {
+        return
+    }
+
+    if (!victim.IsPlayer() || GetGameState() != eGameState.Playing) {
+        return
+    }
+    
+    int damageSourceId = DamageInfo_GetDamageSourceIdentifier(damageInfo)
+    if (damageSourceId != eDamageSourceId.fall) {
+        return
+    }
+
+    string playerName = victim.GetPlayerName()
+    int count = 1
+    if (playerName in file.pitfallTable) {
+        count = file.pitfallTable[playerName] + 1
+    }
+
+    string subject = PITFALL_MAP_SUBJECT_TABLE[map]
+    string msg = playerName + " has fallen " + subject + " " + count + " times"
+    if (count == 1) {
+        msg = playerName + " fell " + subject
+    } else if (count == 2) {
+        msg = playerName + " fell " + subject + ", again"
+    }
+
+    AnnounceMessage(Purple(msg))
+    file.pitfallTable[playerName] <- count
+}
+
+//------------------------------------------------------------------------------
 // utils
 //------------------------------------------------------------------------------
 void function Log(string s) {
@@ -1358,7 +1414,7 @@ array<entity> function FindPlayersBySubstring(string substring) {
 array<string> function FindMapsBySubstring(string substring) {
     substring = substring.tolower()
     array<string> maps = []
-    foreach (string mapKey, string mapName in mapNameTable) {
+    foreach (string mapKey, string mapName in MAP_NAME_TABLE) {
         if (mapName.tolower().find(substring) != null) {
             maps.append(mapKey)
         }

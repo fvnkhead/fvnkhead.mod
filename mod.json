@@ -154,6 +154,19 @@
         },
 
         {
+            "Name": "fm_rebalanced_buffs_enabled",
+            "DefaultValue": "0"
+        },
+        {
+            "Name": "fm_rebalanced_nerfs_enabled",
+            "DefaultValue": "0"
+        },
+        {
+            "Name": "fm_rebalanced_latest_enabled",
+            "DefaultValue": "0"
+        },
+
+        {
             "Name": "fm_yell_enabled",
             "DefaultValue": "1"
         },
@@ -183,6 +196,13 @@
         }
     ],
     "Scripts": [
+        {
+            "Path": "fm_rebalanced.nut",
+            "RunOn": "SERVER && MP",
+            "ServerCallback": {
+                "After": "fm_RebalancedInit"
+            }
+        },
         {
             "Path": "fm.nut",
             "RunOn": "SERVER && MP",

@@ -99,6 +99,10 @@ struct {
     int skipThreshold
     array<entity> skipVoters
 
+    bool rebalancedBuffsEnabled
+    bool rebalancedNerfsEnabled
+    bool rebalancedLatestEnabled
+
     bool yellEnabled
 
     bool slayEnabled
@@ -201,6 +205,11 @@ void function fm_Init() {
     file.skipPercentage = GetConVarFloat("fm_skip_percentage")
     file.skipVoters = []
 
+    // rebalanced
+    file.rebalancedBuffsEnabled = GetConVarBool("fm_rebalanced_buffs_enabled")
+    file.rebalancedNerfsEnabled = GetConVarBool("fm_rebalanced_nerfs_enabled")
+    file.rebalancedLatestEnabled = GetConVarBool("fm_rebalanced_latest_enabled")
+
     // yell
     file.yellEnabled = GetConVarBool("fm_yell_enabled")
 
@@ -231,6 +240,10 @@ void function fm_Init() {
     CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, 0,  false, false, "!balance => vote for team balance")
     CommandInfo cmdExtend  = NewCommandInfo("!extend",  CommandExtend,  0, 0,  false, false, "!extend => vote to extend map time")
     CommandInfo cmdSkip    = NewCommandInfo("!skip",    CommandSkip,    0, 0,  false, false, "!skip => vote to skip current map")
+    CommandInfo cmdBuffs   = NewCommandInfo("!buffs",   CommandBuffs,   0, 0,  false, false, "!buffs => list buffs on server")
+    CommandInfo cmdNerfs   = NewCommandInfo("!nerfs",   CommandNerfs,   0, 0,  false, false, "!nerfs => list nerfs on server")
+    CommandInfo cmdLatest  = NewCommandInfo("!latest",  CommandLatest,  0, 0,  false, false, "!latest => list latest buffs/nerfs on server")
+
     CommandInfo cmdRoll    = NewCommandInfo("!roll",    CommandRoll,    0, 0,  false, false, "!roll => roll a number between 0 and 100")
     // admin commands
     CommandInfo cmdAuth    = NewCommandInfo("!auth",    CommandAuth,    1, 1,  true,  true,  "!auth <password> => authenticate yourself as an admin")
@@ -299,6 +312,18 @@ void function fm_Init() {
     if (file.skipEnabled && file.maps.len() > 1) {
         file.commands.append(cmdSkip)
         AddCallback_OnClientDisconnected(Skip_OnClientDisconnected)
+    }
+
+    if (file.rebalancedBuffsEnabled) {
+        file.commands.append(cmdBuffs)
+    }
+
+    if (file.rebalancedNerfsEnabled) {
+        file.commands.append(cmdNerfs)
+    }
+
+    if (file.rebalancedLatestEnabled) {
+        file.commands.append(cmdLatest)
     }
 
     if (file.yellEnabled) {
@@ -1178,6 +1203,61 @@ void function Skip_OnClientDisconnected(entity player) {
         file.skipVoters.remove(file.skipVoters.find(player))
         Debug("[Skip_OnClientDisconnected] " + player.GetPlayerName() + " removed from skip voters")
     }
+}
+
+//------------------------------------------------------------------------------
+// rebalanced
+//------------------------------------------------------------------------------
+const int CHAT_LINE_MAX = 95
+
+bool function CommandBuffs(entity player, array<string> args) {
+    PrintRebalancedEntryList(player, BUFF_LIST)
+    return true
+}
+
+bool function CommandNerfs(entity player, array<string> args) {
+    PrintRebalancedEntryList(player, NERF_LIST)
+    return true
+}
+
+bool function CommandLatest(entity player, array<string> args) {
+    PrintRebalancedEntryList(player, LATEST_LIST)
+    return true
+}
+
+void function PrintRebalancedEntryList(entity player, array<RebalancedEntry> entries) {
+    if (entries.len() == 0) {
+        return
+    }
+
+    array<string> formattedEntries = []
+    foreach (RebalancedEntry entry in entries) {
+        formattedEntries.append(FormatRebalancedEntry(entry))
+    }
+
+    string sep = "  |  "
+
+    array<string> lines = []
+    string currentLine = formattedEntries[0]
+    for (int i = 1; i < formattedEntries.len(); i++) {
+        string entry = formattedEntries[i]
+        if (currentLine.len() + sep.len() + entry.len() > CHAT_LINE_MAX) {
+            lines.append(currentLine)
+            currentLine = entry
+            continue
+        }
+
+        currentLine = currentLine + sep + entry
+    }
+    lines.append(currentLine)
+
+    foreach (string line in lines) {
+        SendMessage(player, Blue(line))
+    }
+}
+
+string function FormatRebalancedEntry(RebalancedEntry entry) {
+    return format("[%s: %s]", entry.name, entry.desc)
 }
 
 //------------------------------------------------------------------------------

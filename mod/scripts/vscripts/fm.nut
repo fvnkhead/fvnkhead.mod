@@ -1359,7 +1359,7 @@ bool function CommandRoll(entity player, array<string> args) {
 
     file.rollCountTable[uid] <- rollCount
 
-    int rollMax = 10
+    int rollMax = 100
     int num = RandomInt(rollMax) + 1
     float f = float(num) / float(rollMax)
 

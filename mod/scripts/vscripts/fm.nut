@@ -118,6 +118,8 @@ struct {
     table<string, int> marvinKillTable
     int marvinKillsTotal
 
+    bool jokeKillsEnabled
+
     bool customCommandsEnabled
     array<CustomCommand> customCommands
 } file
@@ -229,6 +231,8 @@ void function fm_Init() {
     file.jokeMarvinEnabled = GetConVarBool("fm_joke_marvin_enabled")
     file.marvinKillTable = {}
     file.marvinKillsTotal = 0
+
+    file.jokeKillsEnabled = GetConVarBool("fm_joke_kills_enabled")
 
     // add commands and callbacks
     CommandInfo cmdHelp    = NewCommandInfo("!help",    CommandHelp,    0, 0,  false, false, "!help => get help")
@@ -348,6 +352,10 @@ void function fm_Init() {
 
     if (file.jokeMarvinEnabled) {
         AddDeathCallback("npc_marvin", Marvin_DeathCallback)
+    }
+
+    if (file.jokeKillsEnabled) {
+        AddCallback_OnPlayerKilled(JokeKills_OnPlayerKilled)
     }
 
     // custom commands
@@ -1427,6 +1435,40 @@ void function Marvin_DeathCallback(entity victim, var damageInfo) {
     AnnounceMessage(Purple(msg))
 
     file.marvinKillTable[playerName] <- count
+}
+
+//------------------------------------------------------------------------------
+// kill jokes
+//------------------------------------------------------------------------------
+void function JokeKills_OnPlayerKilled(entity victim, entity attacker, var damageInfo) {
+    if (!attacker.IsPlayer() || !victim.IsPlayer() || GetGameState() != eGameState.Playing) {
+        return
+    }
+    
+    int damageSourceId = DamageInfo_GetDamageSourceIdentifier(damageInfo)
+    string verb
+    switch (damageSourceId) {
+        case eDamageSourceId.mp_weapon_grenade_sonar:
+            verb = "bladed"
+            break
+        case eDamageSourceId.phase_shift:
+            verb = "phased"
+            break
+        case eDamageSourceId.mp_weapon_arc_launcher:
+            verb = "shocked"
+            break
+        case eDamageSourceId.mp_weapon_mgl:
+            verb = "magnetized"
+            break
+        default:
+            return
+    }
+
+    string attackerName = attacker.GetPlayerName()
+    string victimName = victim.GetPlayerName()
+    string msg = format("%s %s %s", attackerName, verb, victimName)
+
+    AnnounceMessage(Purple(msg))
 }
 
 //------------------------------------------------------------------------------

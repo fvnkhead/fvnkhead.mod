@@ -193,6 +193,10 @@
         {
             "Name": "fm_joke_marvin_enabled",
             "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_joke_kills_enabled",
+            "DefaultValue": "1"
         }
     ],
     "Scripts": [

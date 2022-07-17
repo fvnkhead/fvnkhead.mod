@@ -110,6 +110,8 @@ struct {
     bool freezeEnabled
 
     bool rollEnabled
+    int rollLimit
+    table<string, int> rollCountTable
 
     bool jokePitfallsEnabled
     table<string, int> pitfallTable
@@ -223,6 +225,8 @@ void function fm_Init() {
 
     // roll
     file.rollEnabled = GetConVarBool("fm_roll_enabled")
+    file.rollLimit = GetConVarInt("fm_roll_limit")
+    file.rollCountTable = {}
 
     // jokes
     file.jokePitfallsEnabled = GetConVarBool("fm_joke_pitfalls_enabled")
@@ -413,7 +417,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     if (!isCommand) {
         // prevent mewn from leaking the admin password
         if (file.adminAuthEnabled && IsAdmin(player) && message.tolower().find(file.adminPassword.tolower()) != null) {
-            SendMessage(player, Red("learn to type, mewn"))
+            SendMessage(player, ErrorColor("learn to type, mewn"))
             messageInfo.shouldBlock = true
             Debug("[ChatCallback] mewn moment")
         }
@@ -428,7 +432,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 
     foreach (CustomCommand c in file.customCommands) {
         if (c.name == command) {
-            SendMessage(player, Blue(c.text))
+            SendMessage(player, PrivateColor(c.text))
             Debug("[ChatCallback] custom command")
             Debug("[ChatCallback] ----- END -----")
             return messageInfo
@@ -450,13 +454,13 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
         messageInfo.shouldBlock = c.isSilent
 
         if (c.isAdmin && IsAdmin(player) && !IsAuthenticatedAdmin(player) && c.name != "!auth") {
-            SendMessage(player, Red("authenticate first"))
+            SendMessage(player, ErrorColor("authenticate first"))
             commandSuccess = false
             break
         }
 
         if (args.len() < c.minArgs || (c.maxArgs != -1 && args.len() > c.maxArgs)) {
-            SendMessage(player, Red("usage: " + c.usage))
+            SendMessage(player, ErrorColor("usage: " + c.usage))
             commandSuccess = false
             break
         }
@@ -465,7 +469,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     }
 
     if (!commandFound) {
-        SendMessage(player, Red("unknown command: " + command))
+        SendMessage(player, ErrorColor("unknown command: " + command))
         messageInfo.shouldBlock = true
         Debug("[ChatCallback] command not found")
     } else if (!commandSuccess) {
@@ -486,7 +490,7 @@ void function Welcome_OnPlayerRespawned(entity player) {
         return
     }
 
-    SendMessage(player, Blue(file.welcome))
+    SendMessage(player, PrivateColor(file.welcome))
     file.welcomedPlayers.append(uid)
 }
 
@@ -516,14 +520,14 @@ bool function CommandHelp(entity player, array<string> args) {
     }
 
     string userHelp = "available commands: " + Join(userCommands, ", ")
-    SendMessage(player, Blue(userHelp))
+    SendMessage(player, PrivateColor(userHelp))
 
     if (!IsAdmin(player)) {
         return true
     }
 
     string adminHelp = "admin commands: " + Join(adminCommands, ", ")
-    SendMessage(player, Blue(adminHelp))
+    SendMessage(player, PrivateColor(adminHelp))
 
     return true
 }
@@ -532,8 +536,8 @@ bool function CommandHelp(entity player, array<string> args) {
 // rules
 //------------------------------------------------------------------------------
 bool function CommandRules(entity player, array<string> args) {
-    SendMessage(player, Blue("ok = " + file.rulesOk))
-    SendMessage(player, Red("not ok = " + file.rulesNotOk))
+    SendMessage(player, PrivateColor("ok = " + file.rulesOk))
+    SendMessage(player, ErrorColor("not ok = " + file.rulesNotOk))
     return true
 }
 
@@ -542,18 +546,18 @@ bool function CommandRules(entity player, array<string> args) {
 //------------------------------------------------------------------------------
 bool function CommandAuth(entity player, array<string> args) {
     if (IsAuthenticatedAdmin(player)) {
-        SendMessage(player, Blue("you are already authenticated"))
+        SendMessage(player, PrivateColor("you are already authenticated"))
         return false
     }
 
     string password = args[0]
     if (password != file.adminPassword) {
-        SendMessage(player, Red("wrong password"))
+        SendMessage(player, ErrorColor("wrong password"))
         return false
     }
 
     file.authenticatedAdmins.append(player.GetUID())
-    SendMessage(player, Blue("hello, admin!"))
+    SendMessage(player, PrivateColor("hello, admin!"))
 
     return true
 }
@@ -566,12 +570,12 @@ bool function CommandKick(entity player, array<string> args) {
     array<entity> foundPlayers = FindPlayersBySubstring(playerName)
 
     if (foundPlayers.len() == 0) {
-        SendMessage(player, Red("player '" + playerName + "' not found"))
+        SendMessage(player, ErrorColor("player '" + playerName + "' not found"))
         return false
     }
 
     if (foundPlayers.len() > 1) {
-        SendMessage(player, Red("multiple matches for player '" + playerName + "', be more specific"))
+        SendMessage(player, ErrorColor("multiple matches for player '" + playerName + "', be more specific"))
         return false
     }
 
@@ -580,12 +584,12 @@ bool function CommandKick(entity player, array<string> args) {
     string targetName = target.GetPlayerName()
 
     if (player == target) {
-        SendMessage(player, Red("you cannot kick yourself"))
+        SendMessage(player, ErrorColor("you cannot kick yourself"))
         return false
     }
 
     if (IsAdmin(target)) {
-        SendMessage(player, Red("you cannot kick an admin"))
+        SendMessage(player, ErrorColor("you cannot kick an admin"))
         return false
     }
 
@@ -596,7 +600,7 @@ bool function CommandKick(entity player, array<string> args) {
 
     if (GetPlayerArray().len() < file.kickMinPlayers) {
         // TODO: store into kicktable anyway?
-        SendMessage(player, Red("not enough players for kick vote, at least " + file.kickMinPlayers + " required"))
+        SendMessage(player, ErrorColor("not enough players for kick vote, at least " + file.kickMinPlayers + " required"))
         return false
     }
 
@@ -620,7 +624,7 @@ bool function CommandKick(entity player, array<string> args) {
         KickPlayer(target)
     } else {
         int remainingVotes = kickInfo.threshold - kickInfo.voters.len()
-        AnnounceMessage(Purple(player.GetPlayerName() + " wants to kick " + targetName + ", " + remainingVotes + " more vote(s) required"))
+        AnnounceMessage(AnnounceColor(player.GetPlayerName() + " wants to kick " + targetName + ", " + remainingVotes + " more vote(s) required"))
     }
 
     return true
@@ -638,7 +642,7 @@ void function KickPlayer(entity player, bool announce = true) {
 
     ServerCommand("kick " + player.GetPlayerName())
     if (announce) {
-        AnnounceMessage(Purple(player.GetPlayerName() + " has been kicked"))
+        AnnounceMessage(AnnounceColor(player.GetPlayerName() + " has been kicked"))
     }
 }
 
@@ -713,7 +717,7 @@ string function MapsString() {
 }
 
 bool function CommandMaps(entity player, array<string> args) {
-    SendMessage(player, Blue(MapsString()))
+    SendMessage(player, PrivateColor(MapsString()))
 
     return true
 }
@@ -723,23 +727,23 @@ bool function CommandNextMap(entity player, array<string> args) {
     array<string> foundMaps = FindMapsBySubstring(mapName)
 
     if (foundMaps.len() == 0) {
-        SendMessage(player, Red("map '" + mapName + "' not found"))
+        SendMessage(player, ErrorColor("map '" + mapName + "' not found"))
         return false
     }
 
     if (foundMaps.len() > 1) {
-        SendMessage(player, Red("multiple matches for map '" + mapName + "', be more specific"))
+        SendMessage(player, ErrorColor("multiple matches for map '" + mapName + "', be more specific"))
         return false
     }
 
     string nextMap = foundMaps[0]
     if (!file.maps.contains(nextMap)) {
-        SendMessage(player, Red(MapName(nextMap) + " is not in the map pool, available maps: " + MapsString()))
+        SendMessage(player, ErrorColor(MapName(nextMap) + " is not in the map pool, available maps: " + MapsString()))
         return false
     }
 
     file.nextMapVoteTable[player] <- nextMap
-    AnnounceMessage(Purple(player.GetPlayerName() + " wants to play on " + MapName(nextMap)))
+    AnnounceMessage(AnnounceColor(player.GetPlayerName() + " wants to play on " + MapName(nextMap)))
     return true;
 }
 
@@ -842,7 +846,7 @@ int function NextMapScoreSort(NextMapScore a, NextMapScore b) {
 
 void function NextMap_OnWinnerDetermined() {
     if (file.nextMapVoteTable.len() > 0) {
-        AnnounceMessage(Purple("next map candidates: " + NextMapCandidatesString()))
+        AnnounceMessage(AnnounceColor("next map candidates: " + NextMapCandidatesString()))
     }
 }
 
@@ -869,7 +873,7 @@ void function NextMapHint_OnPlayerRespawned(entity player) {
         return
     }
 
-    SendMessage(player, Blue("hint: you can use !nextmap to vote for the next map"))
+    SendMessage(player, PrivateColor("hint: you can use !nextmap to vote for the next map"))
     file.nextMapHintedPlayers.append(uid)
 }
 
@@ -881,14 +885,14 @@ bool function CommandSwitch(entity player, array<string> args) {
     if (uid in file.switchCountTable) {
         int switchCount = file.switchCountTable[uid]
         if (switchCount >= file.switchLimit) {
-            SendMessage(player, Red("you've switched teams enough"))
+            SendMessage(player, ErrorColor("you've switched teams enough"))
             return false
         }
     }
 
     // ctf
     if (!file.switchKill && HasFlag(player)) {
-        SendMessage(player, Red("can't switch while you're holding the flag"))
+        SendMessage(player, ErrorColor("can't switch while you're holding the flag"))
         return false
     }
 
@@ -900,7 +904,7 @@ bool function CommandSwitch(entity player, array<string> args) {
 
     int playerDiff = thisTeamCount - otherTeamCount
     if (playerDiff < file.switchDiff && otherTeamCount > 0) {
-        SendMessage(player, Red("can't switch, there's enough players on the other team"))
+        SendMessage(player, ErrorColor("can't switch, there's enough players on the other team"))
         return false
     }
 
@@ -919,7 +923,7 @@ bool function CommandSwitch(entity player, array<string> args) {
 
     SetTeam(player, otherTeam)
 
-    AnnounceMessage(Purple(player.GetPlayerName() + " has switched teams"))
+    AnnounceMessage(AnnounceColor(player.GetPlayerName() + " has switched teams"))
 
     return true
 }
@@ -936,7 +940,7 @@ bool function CommandBalance(entity player, array<string> args) {
     }
 
     if (GetPlayerArray().len() < file.balanceMinPlayers) {
-        SendMessage(player, Red("not enough players for balance, at least " + file.balanceMinPlayers + " required"))
+        SendMessage(player, ErrorColor("not enough players for balance, at least " + file.balanceMinPlayers + " required"))
         return false
     }
 
@@ -955,7 +959,7 @@ bool function CommandBalance(entity player, array<string> args) {
     } else {
         int remainingVotes = file.balanceThreshold - file.balanceVoters.len()
         Debug("[CommandBalance] remaining balance votes: " + remainingVotes)
-        AnnounceMessage(Purple(player.GetPlayerName() + " wants team balance, " + remainingVotes + " more vote(s) required"))
+        AnnounceMessage(AnnounceColor(player.GetPlayerName() + " wants team balance, " + remainingVotes + " more vote(s) required"))
     }
 
     return true
@@ -980,7 +984,7 @@ void function DoBalance() {
         SetTeam(player, newTeam)
     }
 
-    AnnounceMessage(Purple("teams have been balanced"))
+    AnnounceMessage(AnnounceColor("teams have been balanced"))
 
     file.balanceVoters.clear()
 }
@@ -1111,7 +1115,7 @@ void function DoAutobalance(int fromTeam) {
     int toTeam = GetOtherTeam(fromTeam) 
     SetTeam(player, toTeam)
 
-    AnnounceMessage(Purple(player.GetPlayerName() + "'s team has been switched due to player difference"))
+    SendMessage(player, PrivateColor("you got autobalanced"))
 }
 
 //------------------------------------------------------------------------------
@@ -1135,7 +1139,7 @@ bool function CommandExtend(entity player, array<string> args) {
         DoExtend()
     } else {
         int remainingVotes = file.extendThreshold - file.extendVoters.len()
-        AnnounceMessage(Purple(player.GetPlayerName() + " wants to extend the map, " + remainingVotes + " more vote(s) required"))
+        AnnounceMessage(AnnounceColor(player.GetPlayerName() + " wants to extend the map, " + remainingVotes + " more vote(s) required"))
     }
 
     return true
@@ -1146,7 +1150,7 @@ void function DoExtend() {
     float newEndTime = currentEndTime + (60 * file.extendMinutes)
     SetServerVar("gameEndTime", newEndTime)
 
-    AnnounceMessage(Purple("map has been extended"))
+    AnnounceMessage(AnnounceColor("map has been extended"))
 
     file.extendVoters.clear()
 }
@@ -1163,7 +1167,7 @@ void function Extend_OnClientDisconnected(entity player) {
 //------------------------------------------------------------------------------
 bool function CommandSkip(entity player, array<string> args) {
     if (GetGameState() >= eGameState.WinnerDetermined) {
-        SendMessage(player, Red("match is over already"))
+        SendMessage(player, ErrorColor("match is over already"))
         return false
     }
     
@@ -1184,7 +1188,7 @@ bool function CommandSkip(entity player, array<string> args) {
         DoSkip()
     } else {
         int remainingVotes = file.skipThreshold - file.skipVoters.len()
-        AnnounceMessage(Purple(player.GetPlayerName() + " wants to skip the current map, " + remainingVotes + " more vote(s) required"))
+        AnnounceMessage(AnnounceColor(player.GetPlayerName() + " wants to skip the current map, " + remainingVotes + " more vote(s) required"))
     }
 
     return true
@@ -1199,10 +1203,10 @@ void function DoSkip() {
 
 void function SkipAnnounceLoop(float waitTime) {
     int seconds = int(waitTime)
-    AnnounceMessage(Purple("current map will be skipped in " + seconds + "..."))
+    AnnounceMessage(AnnounceColor("current map will be skipped in " + seconds + "..."))
     for (int i = seconds - 1; i > 0; i--) {
         wait 1.0
-        AnnounceMessage(Purple(i + "..."))
+        AnnounceMessage(AnnounceColor(i + "..."))
     }
 }
 
@@ -1260,7 +1264,7 @@ void function PrintRebalancedEntryList(entity player, array<RebalancedEntry> ent
     lines.append(currentLine)
 
     foreach (string line in lines) {
-        SendMessage(player, Blue(line))
+        SendMessage(player, PrivateColor(line))
     }
 }
 
@@ -1285,23 +1289,23 @@ bool function CommandSlay(entity player, array<string> args) {
     array<entity> foundPlayers = FindPlayersBySubstring(playerName)
 
     if (foundPlayers.len() == 0) {
-        SendMessage(player, Red("player '" + playerName + "' not found"))
+        SendMessage(player, ErrorColor("player '" + playerName + "' not found"))
         return false
     }
 
     if (foundPlayers.len() > 1) {
-        SendMessage(player, Red("multiple matches for player '" + playerName + "', be more specific"))
+        SendMessage(player, ErrorColor("multiple matches for player '" + playerName + "', be more specific"))
         return false
     }
 
     entity target = foundPlayers[0]
     if (!IsAlive(target)) {
-        SendMessage(player, Red(target.GetPlayerName() + " is already dead"))
+        SendMessage(player, ErrorColor(target.GetPlayerName() + " is already dead"))
         return false
     }
 
     target.Die()
-    AnnounceMessage(Purple(target.GetPlayerName() + " has been slain"))
+    AnnounceMessage(AnnounceColor(target.GetPlayerName() + " has been slain"))
 
     return true
 }
@@ -1314,18 +1318,18 @@ bool function CommandFreeze(entity player, array<string> args) {
     array<entity> foundPlayers = FindPlayersBySubstring(playerName)
 
     if (foundPlayers.len() == 0) {
-        SendMessage(player, Red("player '" + playerName + "' not found"))
+        SendMessage(player, ErrorColor("player '" + playerName + "' not found"))
         return false
     }
 
     if (foundPlayers.len() > 1) {
-        SendMessage(player, Red("multiple matches for player '" + playerName + "', be more specific"))
+        SendMessage(player, ErrorColor("multiple matches for player '" + playerName + "', be more specific"))
         return false
     }
 
     entity target = foundPlayers[0]
     if (!IsAlive(target)) {
-        SendMessage(player, Red(target.GetPlayerName() + " is dead"))
+        SendMessage(player, ErrorColor(target.GetPlayerName() + " is dead"))
         return false
     }
 
@@ -1333,7 +1337,7 @@ bool function CommandFreeze(entity player, array<string> args) {
     target.ConsumeDoubleJump()
     target.DisableWeaponViewModel()
 
-    AnnounceMessage(Purple(target.GetPlayerName() + " has been frozen"))
+    AnnounceMessage(AnnounceColor(target.GetPlayerName() + " has been frozen"))
 
     return true
 }
@@ -1342,19 +1346,41 @@ bool function CommandFreeze(entity player, array<string> args) {
 // roll
 //------------------------------------------------------------------------------
 bool function CommandRoll(entity player, array<string> args) {
-    int num = RandomInt(101)
-    string msg = player.GetPlayerName() + " rolled " + num
-    if (num == 0) {
-        msg += ", what a noob lol"
-    } else if (num == 69) {
-        msg += ", nice"
-    } else if (num == 100) {
-        msg += ", what a " + Red("CHAD")
-    } else {
-        msg += ", meh"
+    string uid = player.GetUID()
+    int rollCount = 1
+    if (uid in file.rollCountTable) {
+        rollCount = file.rollCountTable[uid] + 1
     }
 
-    AnnounceMessage(Purple(msg))
+    if (rollCount > file.rollLimit) {
+        SendMessage(player, ErrorColor("you've rolled enough"))
+        return false
+    }
+
+    file.rollCountTable[uid] <- rollCount
+
+    int rollMax = 10
+    int num = RandomInt(rollMax) + 1
+    float f = float(num) / float(rollMax)
+
+    string name = player.GetPlayerName()
+    string msg = AnnounceColor(name + " rolled ") + ErrorColor("" + num)
+    msg += AnnounceColor("")
+    if (num == 1) {
+        msg += ", lol"
+    } else if (num == 6) {
+        msg += ", nice"
+    } else if (num == rollMax) {
+        msg += ", what a " + ErrorColor("CHAD")
+    } else if (f < 0.5) {
+        msg += ", meh"
+    } else if (f < 0.9) {
+        msg += ", alright"
+    } else {
+        msg += ", almost"
+    }
+
+    AnnounceMessage(AnnounceColor(msg))
     return true
 }
 
@@ -1399,7 +1425,7 @@ void function Pitfalls_OnPlayerKilled(entity victim, entity attacker, var damage
         msg = playerName + " fell " + subject + ", again"
     }
 
-    AnnounceMessage(Purple(msg))
+    AnnounceMessage(AnnounceColor(msg))
 
     file.pitfallTable[playerName] <- count
 }
@@ -1432,7 +1458,7 @@ void function Marvin_DeathCallback(entity victim, var damageInfo) {
         msg = "all the marvins have been killed :("
     }
 
-    AnnounceMessage(Purple(msg))
+    AnnounceMessage(AnnounceColor(msg))
 
     file.marvinKillTable[playerName] <- count
 }
@@ -1468,7 +1494,7 @@ void function JokeKills_OnPlayerKilled(entity victim, entity attacker, var damag
     string victimName = victim.GetPlayerName()
     string msg = format("%s %s %s", attackerName, verb, victimName)
 
-    AnnounceMessage(Purple(msg))
+    AnnounceMessage(AnnounceColor(msg))
 }
 
 //------------------------------------------------------------------------------
@@ -1486,16 +1512,20 @@ void function Debug(string s) {
     print("[fvnkhead.mod/debug] " + s)
 }
 
-string function Red(string s) {
+string function ErrorColor(string s) {
     return "\x1b[112m" + s
 }
 
-string function Blue(string s) {
+string function PrivateColor(string s) {
     return "\x1b[111m" + s
 }
 
-string function Purple(string s) {
+string function AnnounceColor(string s) {
     return "\x1b[95m" + s
+}
+
+string function Green(string s) {
+    return "\x1b[92m" + s
 }
 
 bool function IsAdmin(entity player) {

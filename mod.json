@@ -185,6 +185,10 @@
             "Name": "fm_roll_enabled",
             "DefaultValue": "1"
         },
+        {
+            "Name": "fm_roll_limit",
+            "DefaultValue": "3"
+        },
 
         {
             "Name": "fm_joke_pitfalls_enabled",

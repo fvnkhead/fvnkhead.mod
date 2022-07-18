@@ -36,6 +36,7 @@ void function fm_RebalancedInit() {
 
     Latest("pulse blade", "50% faster recharge")
     Latest("thunderbolt", "direct hit dmg 70 => 100")
+    Latest("archer", "dumbfire enabled, splash reduced")
     Latest("alternator",  "dmg 35 => 22")
     Latest("r201 & r101", "dmg 25 => 20")
     Latest("kraber",      "previous buff removed")

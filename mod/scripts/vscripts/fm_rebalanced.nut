@@ -16,6 +16,7 @@ void function fm_RebalancedInit() {
     Buff("arc grenade",   "explodes on impact")
     Buff("pulse blade",   "50% faster recharge")
     Buff("thunderbolt",   "direct hit dmg 70 => 100")
+    Buff("archer", "dumbfire enabled, splash reduced")
 
     Nerf("melee",         "dmg 100 => 60")
     Nerf("car",           "dmg 25 => 14")

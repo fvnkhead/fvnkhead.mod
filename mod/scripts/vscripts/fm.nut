@@ -583,6 +583,7 @@ bool function CommandKick(entity player, array<string> args) {
     }
 
     if (IsAuthenticatedAdmin(player)) {
+        Log("[CommandKick] " + targetName + " kicked by " + player.GetPlayerName())
         KickPlayer(target)
         return true
     }
@@ -610,6 +611,7 @@ bool function CommandKick(entity player, array<string> args) {
     // kick if votes exceed threshold
     KickInfo kickInfo = file.kickTable[targetUid]
     if (kickInfo.voters.len() >= kickInfo.threshold) {
+        Log("[CommandKick] " + targetName + " kicked by player vote")
         KickPlayer(target)
     } else {
         int remainingVotes = kickInfo.threshold - kickInfo.voters.len()
@@ -637,7 +639,7 @@ void function KickPlayer(entity player, bool announce = true) {
 
 void function Kick_OnPlayerRespawned(entity player) {
     if (file.kickedPlayers.contains(player.GetUID())) {
-        Debug("[Kick_OnPlayerRespawned] previously kicked " + player.GetPlayerName() + " tried to rejoin")
+        Log("[Kick_OnPlayerRespawned] previously kicked " + player.GetPlayerName() + " tried to rejoin")
         KickPlayer(player, false)
     }
 }

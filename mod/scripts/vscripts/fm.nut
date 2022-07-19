@@ -7,14 +7,16 @@ global function fm_Init
 //------------------------------------------------------------------------------
 // structs
 //------------------------------------------------------------------------------
+const int C_SILENT = 0x01
+const int C_ADMIN  = 0x02
+
 struct CommandInfo {
     array<string> names
     bool functionref(entity, array<string>) fn
     int minArgs,
     int maxArgs
-    bool isSilent,
-    bool isAdmin,
     string usage
+    int flags
 }
 
 struct KickInfo {
@@ -243,7 +245,6 @@ void function fm_Init() {
         ["!help"],
         CommandHelp,
         0, 0,
-        false, false,
         "!help => get help"
     )
 
@@ -251,7 +252,6 @@ void function fm_Init() {
         ["!rules"],
         CommandRules,
         0, 0,
-        false, false,
         "!rules => show rules"
     )
 
@@ -259,7 +259,6 @@ void function fm_Init() {
         ["!kick"],
         CommandKick,
         1, 1,
-        false, false,
         "!kick <full or partial player name> => vote to kick a player"
     )
 
@@ -267,7 +266,6 @@ void function fm_Init() {
         ["!maps"],
         CommandMaps,
         0, 0,
-        false, false,
         "!maps => list available maps"
     )
 
@@ -275,7 +273,6 @@ void function fm_Init() {
         ["!nextmap", "!nm"],
         CommandNextMap,
         1, 3,
-        false, false,
         "!nextmap <full or partial map name> => vote for next map"
     )
 
@@ -283,7 +280,6 @@ void function fm_Init() {
         ["!switch"],
         CommandSwitch,
         0, 0,
-        false, false,
         "!switch => join opposite team"
     )
 
@@ -291,7 +287,6 @@ void function fm_Init() {
         ["!teambalance", "!tb"],
         CommandBalance,
         0, 0,
-        false, false,
         "!balance => vote for team balance"
     )
 
@@ -299,7 +294,6 @@ void function fm_Init() {
         ["!extend"],
         CommandExtend,
         0, 0,
-        false, false,
         "!extend => vote to extend map time"
     )
 
@@ -307,7 +301,6 @@ void function fm_Init() {
         ["!skip"],
         CommandSkip,
         0, 0,
-        false, false,
         "!skip => vote to skip current map"
     )
 
@@ -315,7 +308,6 @@ void function fm_Init() {
         ["!buffs"], 
         CommandBuffs,
         0, 0,
-        false, false,
         "!buffs => list buffs on server"
     )
 
@@ -323,7 +315,6 @@ void function fm_Init() {
         ["!nerfs"], 
         CommandNerfs,
         0, 0,
-        false, false,
         "!nerfs => list nerfs on server"
     )
 
@@ -331,7 +322,6 @@ void function fm_Init() {
         ["!latest"],
         CommandLatest,
         0, 0,
-        false, false,
         "!latest => list latest buffs/nerfs on server"
     )
 
@@ -339,7 +329,6 @@ void function fm_Init() {
         ["!roll"],  
         CommandRoll,
         0, 0,
-        false, false,
         "!roll => roll a number between 0 and 100"
     )
 
@@ -348,32 +337,32 @@ void function fm_Init() {
         ["!auth"],
         CommandAuth,
         1, 1,
-        true,  true,
-        "!auth <password> => authenticate yourself as an admin"
+        "!auth <password> => authenticate yourself as an admin",
+        C_ADMIN | C_SILENT
     )
 
     CommandInfo cmdYell = NewCommandInfo(
         ["!yell"],  
         CommandYell,
         1, -1,
-        true,  true,
-        "!yell ... => yell something"
+        "!yell ... => yell something",
+        C_ADMIN | C_SILENT
     )
 
     CommandInfo cmdSlay = NewCommandInfo(
         ["!slay"],
         CommandSlay,
         1, 1,
-        false, true,
-        "!slay <full or partial player name> => kill a player"
+        "!slay <full or partial player name> => kill a player",
+        C_ADMIN
     )
 
     CommandInfo cmdFreeze = NewCommandInfo(
         ["!freeze"],
         CommandFreeze,
         1, 1,
-        false, true,
-        "!freeze <full or partial player name> => freeze a player"
+        "!freeze <full or partial player name> => freeze a player",
+        C_ADMIN
     )
 
     if (file.welcomeEnabled) {
@@ -507,15 +496,14 @@ void function fm_Init() {
 //------------------------------------------------------------------------------
 // command handling
 //------------------------------------------------------------------------------
-CommandInfo function NewCommandInfo(array<string> names, bool functionref(entity, array<string>) fn, int minArgs, int maxArgs, bool isSilent, bool isAdmin, string usage) {
+CommandInfo function NewCommandInfo(array<string> names, bool functionref(entity, array<string>) fn, int minArgs, int maxArgs, string usage, int flags = 0x0) {
     CommandInfo commandInfo
     commandInfo.names = names
     commandInfo.fn = fn
     commandInfo.minArgs = minArgs
     commandInfo.maxArgs = maxArgs
-    commandInfo.isSilent = isSilent
-    commandInfo.isAdmin = isAdmin
     commandInfo.usage = usage
+    commandInfo.flags = flags
     return commandInfo
 }
 
@@ -554,14 +542,14 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
             continue
         }
 
-        if (c.isAdmin && !IsAdmin(player)) {
+        if (c.flags & C_ADMIN && !IsAdmin(player)) {
             break
         }
 
         commandFound = true
-        messageInfo.shouldBlock = c.isSilent
+        messageInfo.shouldBlock = (c.flags & C_SILENT) > 0
 
-        if (c.isAdmin && IsAdmin(player) && !IsAuthenticatedAdmin(player) && command != "!auth") {
+        if (c.flags & C_ADMIN && IsAdmin(player) && !IsAuthenticatedAdmin(player) && command != "!auth") {
             SendMessage(player, ErrorColor("authenticate first"))
             commandSuccess = false
             break
@@ -614,7 +602,7 @@ bool function CommandHelp(entity player, array<string> args) {
     array<string> adminCommands = []
     foreach (CommandInfo c in file.commands) {
         string names = Join(c.names, "/")
-        if (c.isAdmin) {
+        if (c.flags & C_ADMIN) {
             adminCommands.append(names)
         } else {
             userCommands.append(names)

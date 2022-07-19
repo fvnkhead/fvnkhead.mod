@@ -106,7 +106,7 @@
         },
 
         {
-            "Name": "fm_balance_enabled",
+            "Name": "fm_balance_enabled", // now !teambalance
             "DefaultValue": "1"
         },
         {

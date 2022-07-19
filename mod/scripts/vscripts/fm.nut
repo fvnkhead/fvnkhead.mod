@@ -8,7 +8,7 @@ global function fm_Init
 // structs
 //------------------------------------------------------------------------------
 struct CommandInfo {
-    string name
+    array<string> names
     bool functionref(entity, array<string>) fn
     int minArgs,
     int maxArgs
@@ -239,25 +239,142 @@ void function fm_Init() {
     file.jokeKillsEnabled = GetConVarBool("fm_joke_kills_enabled")
 
     // add commands and callbacks
-    CommandInfo cmdHelp    = NewCommandInfo("!help",    CommandHelp,    0, 0,  false, false, "!help => get help")
-    CommandInfo cmdRules   = NewCommandInfo("!rules",   CommandRules,   0, 0,  false, false, "!rules => show rules")
-    CommandInfo cmdKick    = NewCommandInfo("!kick",    CommandKick,    1, 1,  false, false, "!kick <full or partial player name> => vote to kick a player")
-    CommandInfo cmdMaps    = NewCommandInfo("!maps",    CommandMaps,    0, 0,  false, false, "!maps => list available maps")
-    CommandInfo cmdNextMap = NewCommandInfo("!nextmap", CommandNextMap, 1, 3,  false, false, "!nextmap <full or partial map name> => vote for next map")
-    CommandInfo cmdSwitch  = NewCommandInfo("!switch",  CommandSwitch,  0, 0,  false, false, "!switch => join opposite team")
-    CommandInfo cmdBalance = NewCommandInfo("!balance", CommandBalance, 0, 0,  false, false, "!balance => vote for team balance")
-    CommandInfo cmdExtend  = NewCommandInfo("!extend",  CommandExtend,  0, 0,  false, false, "!extend => vote to extend map time")
-    CommandInfo cmdSkip    = NewCommandInfo("!skip",    CommandSkip,    0, 0,  false, false, "!skip => vote to skip current map")
-    CommandInfo cmdBuffs   = NewCommandInfo("!buffs",   CommandBuffs,   0, 0,  false, false, "!buffs => list buffs on server")
-    CommandInfo cmdNerfs   = NewCommandInfo("!nerfs",   CommandNerfs,   0, 0,  false, false, "!nerfs => list nerfs on server")
-    CommandInfo cmdLatest  = NewCommandInfo("!latest",  CommandLatest,  0, 0,  false, false, "!latest => list latest buffs/nerfs on server")
+    CommandInfo cmdHelp = NewCommandInfo(
+        ["!help"],
+        CommandHelp,
+        0, 0,
+        false, false,
+        "!help => get help"
+    )
 
-    CommandInfo cmdRoll    = NewCommandInfo("!roll",    CommandRoll,    0, 0,  false, false, "!roll => roll a number between 0 and 100")
+    CommandInfo cmdRules = NewCommandInfo(
+        ["!rules"],
+        CommandRules,
+        0, 0,
+        false, false,
+        "!rules => show rules"
+    )
+
+    CommandInfo cmdKick = NewCommandInfo(
+        ["!kick"],
+        CommandKick,
+        1, 1,
+        false, false,
+        "!kick <full or partial player name> => vote to kick a player"
+    )
+
+    CommandInfo cmdMaps = NewCommandInfo(
+        ["!maps"],
+        CommandMaps,
+        0, 0,
+        false, false,
+        "!maps => list available maps"
+    )
+
+    CommandInfo cmdNextMap = NewCommandInfo(
+        ["!nextmap", "!nm"],
+        CommandNextMap,
+        1, 3,
+        false, false,
+        "!nextmap <full or partial map name> => vote for next map"
+    )
+
+    CommandInfo cmdSwitch = NewCommandInfo(
+        ["!switch"],
+        CommandSwitch,
+        0, 0,
+        false, false,
+        "!switch => join opposite team"
+    )
+
+    CommandInfo cmdBalance = NewCommandInfo(
+        ["!teambalance", "!tb"],
+        CommandBalance,
+        0, 0,
+        false, false,
+        "!balance => vote for team balance"
+    )
+
+    CommandInfo cmdExtend = NewCommandInfo(
+        ["!extend"],
+        CommandExtend,
+        0, 0,
+        false, false,
+        "!extend => vote to extend map time"
+    )
+
+    CommandInfo cmdSkip = NewCommandInfo(
+        ["!skip"],
+        CommandSkip,
+        0, 0,
+        false, false,
+        "!skip => vote to skip current map"
+    )
+
+    CommandInfo cmdBuffs = NewCommandInfo(
+        ["!buffs"], 
+        CommandBuffs,
+        0, 0,
+        false, false,
+        "!buffs => list buffs on server"
+    )
+
+    CommandInfo cmdNerfs = NewCommandInfo(
+        ["!nerfs"], 
+        CommandNerfs,
+        0, 0,
+        false, false,
+        "!nerfs => list nerfs on server"
+    )
+
+    CommandInfo cmdLatest = NewCommandInfo(
+        ["!latest"],
+        CommandLatest,
+        0, 0,
+        false, false,
+        "!latest => list latest buffs/nerfs on server"
+    )
+
+    CommandInfo cmdRoll = NewCommandInfo(
+        ["!roll"],  
+        CommandRoll,
+        0, 0,
+        false, false,
+        "!roll => roll a number between 0 and 100"
+    )
+
     // admin commands
-    CommandInfo cmdAuth    = NewCommandInfo("!auth",    CommandAuth,    1, 1,  true,  true,  "!auth <password> => authenticate yourself as an admin")
-    CommandInfo cmdYell    = NewCommandInfo("!yell",    CommandYell,    1, -1, true,  true,  "!yell ... => yell something")
-    CommandInfo cmdSlay    = NewCommandInfo("!slay",    CommandSlay,    1, 1,  false, true,  "!slay <full or partial player name> => kill a player")
-    CommandInfo cmdFreeze  = NewCommandInfo("!freeze",  CommandFreeze,  1, 1,  false, true,  "!freeze <full or partial player name> => freeze a player")
+    CommandInfo cmdAuth = NewCommandInfo(
+        ["!auth"],
+        CommandAuth,
+        1, 1,
+        true,  true,
+        "!auth <password> => authenticate yourself as an admin"
+    )
+
+    CommandInfo cmdYell = NewCommandInfo(
+        ["!yell"],  
+        CommandYell,
+        1, -1,
+        true,  true,
+        "!yell ... => yell something"
+    )
+
+    CommandInfo cmdSlay = NewCommandInfo(
+        ["!slay"],
+        CommandSlay,
+        1, 1,
+        false, true,
+        "!slay <full or partial player name> => kill a player"
+    )
+
+    CommandInfo cmdFreeze = NewCommandInfo(
+        ["!freeze"],
+        CommandFreeze,
+        1, 1,
+        false, true,
+        "!freeze <full or partial player name> => freeze a player"
+    )
 
     if (file.welcomeEnabled) {
         AddCallback_OnPlayerRespawned(Welcome_OnPlayerRespawned)
@@ -390,9 +507,9 @@ void function fm_Init() {
 //------------------------------------------------------------------------------
 // command handling
 //------------------------------------------------------------------------------
-CommandInfo function NewCommandInfo(string name, bool functionref(entity, array<string>) fn, int minArgs, int maxArgs, bool isSilent, bool isAdmin, string usage) {
+CommandInfo function NewCommandInfo(array<string> names, bool functionref(entity, array<string>) fn, int minArgs, int maxArgs, bool isSilent, bool isAdmin, string usage) {
     CommandInfo commandInfo
-    commandInfo.name = name
+    commandInfo.names = names
     commandInfo.fn = fn
     commandInfo.minArgs = minArgs
     commandInfo.maxArgs = maxArgs
@@ -403,10 +520,9 @@ CommandInfo function NewCommandInfo(string name, bool functionref(entity, array<
 }
 
 ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo) {
-    // might be buggy
-    //if (IsLobby()) {
-    //    return messageInfo
-    //}
+    if (IsLobby()) {
+        return messageInfo
+    }
 
     entity player = messageInfo.player
     string message = strip(messageInfo.message)
@@ -434,7 +550,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     bool commandFound = false
     bool commandSuccess = false
     foreach (CommandInfo c in file.commands) {
-        if (command != c.name) {
+        if (!c.names.contains(command)) {
             continue
         }
 
@@ -445,7 +561,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
         commandFound = true
         messageInfo.shouldBlock = c.isSilent
 
-        if (c.isAdmin && IsAdmin(player) && !IsAuthenticatedAdmin(player) && c.name != "!auth") {
+        if (c.isAdmin && IsAdmin(player) && !IsAuthenticatedAdmin(player) && command != "!auth") {
             SendMessage(player, ErrorColor("authenticate first"))
             commandSuccess = false
             break
@@ -497,10 +613,11 @@ bool function CommandHelp(entity player, array<string> args) {
     array<string> userCommands = []
     array<string> adminCommands = []
     foreach (CommandInfo c in file.commands) {
+        string names = Join(c.names, "/")
         if (c.isAdmin) {
-            adminCommands.append(c.name)
+            adminCommands.append(names)
         } else {
-            userCommands.append(c.name)
+            userCommands.append(names)
         }
     }
 
@@ -918,7 +1035,7 @@ bool function CommandBalance(entity player, array<string> args) {
     }
 
     if (GetPlayerArray().len() < file.balanceMinPlayers) {
-        SendMessage(player, ErrorColor("not enough players for balance, at least " + file.balanceMinPlayers + " required"))
+        SendMessage(player, ErrorColor("not enough players for balance vote, at least " + file.balanceMinPlayers + " required"))
         return false
     }
 

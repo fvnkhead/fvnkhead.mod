@@ -410,19 +410,13 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 
     entity player = messageInfo.player
     string message = strip(messageInfo.message)
-    Debug("[ChatCallback] ----- BEGIN -----")
-    Debug("[ChatCallback] player: " + player.GetPlayerName())
-    Debug("[ChatCallback] message: " + message)
     bool isCommand = format("%c", message[0]) == "!"
     if (!isCommand) {
         // prevent mewn from leaking the admin password
         if (file.adminAuthEnabled && IsAdmin(player) && message.tolower().find(file.adminPassword.tolower()) != null) {
             SendMessage(player, ErrorColor("learn to type, mewn"))
             messageInfo.shouldBlock = true
-            Debug("[ChatCallback] mewn moment")
         }
-        Debug("[ChatCallback] not a command")
-        Debug("[ChatCallback] ----- END -----")
         return messageInfo
     }
 
@@ -433,8 +427,6 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     foreach (CustomCommand c in file.customCommands) {
         if (c.name == command) {
             SendMessage(player, PrivateColor(c.text))
-            Debug("[ChatCallback] custom command")
-            Debug("[ChatCallback] ----- END -----")
             return messageInfo
         }
     }
@@ -471,13 +463,10 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     if (!commandFound) {
         SendMessage(player, ErrorColor("unknown command: " + command))
         messageInfo.shouldBlock = true
-        Debug("[ChatCallback] command not found")
     } else if (!commandSuccess) {
-        Debug("[ChatCallback] command failure")
         messageInfo.shouldBlock = true
     }
 
-    Debug("[ChatCallback] ----- END -----")
     return messageInfo
 }
 
@@ -658,7 +647,6 @@ void function Kick_OnClientDisconnected(entity player) {
         array<entity> voters = kickInfo.voters
         if (voters.contains(player)) {
             voters.remove(voters.find(player))
-            Debug("[Kick_OnClientDisconnected] kick vote from " + player.GetPlayerName() + " removed")
         }
 
         if (voters.len() == 0) {
@@ -784,14 +772,11 @@ string function DrawNextMapFromVoteTable() {
         maps.append(map)
     }
 
-    Debug("[DrawNextMapFromVoteTable] maps = [" + Join(maps, ", ") + "]")
-
     if (maps.len() == 0) {
         return ""
     }
 
     string nextMap = maps[RandomInt(maps.len())]
-    Debug("[DrawNextMapFromVoteTable] nextMap = " + nextMap)
     return nextMap
 }
 
@@ -813,14 +798,11 @@ string function NextMapCandidatesString() {
 array<NextMapScore> function NextMapCandidates() {
     table<string, int> mapVotes = {}
     foreach (entity player, string map in file.nextMapVoteTable) {
-        Debug("[NextMapCandidates] player = " + player.GetPlayerName() + ", map = " + map)
         if (map in mapVotes) {
             int currentVotes = mapVotes[map]
             mapVotes[map] <- currentVotes + 1
-            Debug("[NextMapCandidates] map " + map + " incremented")
         } else {
             mapVotes[map] <- 1
-            Debug("[NextMapCandidates] map " + map + " initialized")
         }
     }
 
@@ -830,7 +812,6 @@ array<NextMapScore> function NextMapCandidates() {
         score.map = map
         score.votes = votes
         scores.append(score)
-        Debug("[NextMapCandidates] map = " + score.map + ", votes = " + score.votes)
     }
 
     scores.sort(NextMapScoreSort)
@@ -853,7 +834,6 @@ void function NextMap_OnWinnerDetermined() {
 void function NextMap_OnClientDisconnected(entity player) {
     if (player in file.nextMapVoteTable) {
         delete file.nextMapVoteTable[player]
-        Debug("[NextMap_OnClientDisconnected] " + player.GetPlayerName() + " removed from next map vote table")
     }
 }
 
@@ -867,8 +847,6 @@ void function NextMapHint_OnPlayerRespawned(entity player) {
     if (GameRules_GetGameMode() == CAPTURE_THE_FLAG) {
         endTime = expect float(GetServerVar("roundEndTime"))
     }
-    Debug("[NextMapHint_OnPlayerRespawned] endTime = " + endTime)
-    Debug("[NextMapHint_OnPlayerRespawned] Time() = " + Time())
     if (Time() < endTime / 2.0) {
         return
     }
@@ -932,9 +910,7 @@ bool function CommandSwitch(entity player, array<string> args) {
 // balance
 //------------------------------------------------------------------------------
 bool function CommandBalance(entity player, array<string> args) {
-    Debug("[CommandBalance] balance by " + player.GetPlayerName() + ", balance voters: " + file.balanceVoters.len() + ", threshold: " + file.balanceThreshold + ", percentage: " + file.balancePercentage)
     if (IsAuthenticatedAdmin(player)) {
-        Debug("[CommandBalance] admin balance by " + player.GetPlayerName())
         DoBalance()
         return true
     }
@@ -946,7 +922,6 @@ bool function CommandBalance(entity player, array<string> args) {
 
     if (file.balanceVoters.len() == 0) {
         file.balanceThreshold = Threshold(GetPlayerArray().len(), file.balancePercentage)
-        Debug("[CommandBalance] setting balance threshold to " + file.balanceThreshold)
     }
 
     if (!file.balanceVoters.contains(player)) {
@@ -954,11 +929,9 @@ bool function CommandBalance(entity player, array<string> args) {
     }
 
     if (file.balanceVoters.len() >= file.balanceThreshold) {
-        Debug("[CommandBalance] balance voters: " + file.balanceVoters.len())
         DoBalance()
     } else {
         int remainingVotes = file.balanceThreshold - file.balanceVoters.len()
-        Debug("[CommandBalance] remaining balance votes: " + remainingVotes)
         AnnounceMessage(AnnounceColor(player.GetPlayerName() + " wants team balance, " + remainingVotes + " more vote(s) required"))
     }
 
@@ -966,7 +939,6 @@ bool function CommandBalance(entity player, array<string> args) {
 }
 
 void function DoBalance() {
-    Debug("[DoBalance] balancing teams")
     array<entity> players = GetPlayerArray()
 
     array<entity> switchablePlayers = []
@@ -1019,7 +991,6 @@ float function CalculateCTFScore(entity player) {
     int returns = player.GetPlayerGameStat(PGS_DEFENSE_SCORE)
     int kills = player.GetPlayerGameStat(PGS_KILLS)
     float score = float((captures * captureWeight) + (returns + returnWeight) + kills)
-    Debug("[CalculateCTFScore] " + player.GetPlayerName() + " = " + score)
     return score
 }
 
@@ -1048,7 +1019,6 @@ void function Balance_Postmatch() {
 void function Balance_OnClientDisconnected(entity player) {
     if (file.balanceVoters.contains(player)) {
         file.balanceVoters.remove(file.balanceVoters.find(player))
-        Debug("[Balance_OnClientDisconnected] " + player.GetPlayerName() + " removed from balance voters")
     }
 }
 
@@ -1090,10 +1060,6 @@ void function Autobalance_Check() {
         return
     }
 
-    Debug("[Autobalance_Check] autobalancing teams")
-    Debug("[Autobalance_Check] imcCount = " + imcCount)
-    Debug("[Autobalance_Check] militiaCount = " + militiaCount)
-    Debug("[Autobalance_Check] diff = " + diff)
     DoAutobalance(fromTeam)
 }
 
@@ -1107,7 +1073,6 @@ void function DoAutobalance(int fromTeam) {
     }
 
     if (switchablePlayers.len() == 0) {
-        Debug("[DoAutobalance] no switchable players found")
         return
     }
 
@@ -1158,7 +1123,6 @@ void function DoExtend() {
 void function Extend_OnClientDisconnected(entity player) {
     if (file.extendVoters.contains(player)) {
         file.extendVoters.remove(file.extendVoters.find(player))
-        Debug("[Extend_OnClientDisconnected] " + player.GetPlayerName() + " removed from extend voters")
     }
 }
 
@@ -1213,7 +1177,6 @@ void function SkipAnnounceLoop(float waitTime) {
 void function Skip_OnClientDisconnected(entity player) {
     if (file.skipVoters.contains(player)) {
         file.skipVoters.remove(file.skipVoters.find(player))
-        Debug("[Skip_OnClientDisconnected] " + player.GetPlayerName() + " removed from skip voters")
     }
 }
 
@@ -1624,7 +1587,6 @@ array<string> function FindMapsBySubstring(string substring) {
 bool function CanSwitchTeams(entity player) {
     // ctf bug, flag can become other team flag so they have 2 flags
     if (HasFlag(player)) {
-        Debug("[CanSwitchTeams] " + player.GetPlayerName() + " has a flag, can't switch")
         return false
     }
 

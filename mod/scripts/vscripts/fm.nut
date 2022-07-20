@@ -1,21 +1,25 @@
 //------------------------------------------------------------------------------
-// disclaimer: shamelessly stolen code from takyon
+// disclaimer: shamelessly stolen code from takyon and karma
 //------------------------------------------------------------------------------
 
 global function fm_Init
 
 //------------------------------------------------------------------------------
-// structs
+// globals
 //------------------------------------------------------------------------------
-const int C_SILENT = 0x01
-const int C_ADMIN  = 0x02
+const int NOMAX    = 9999
+
+const int C_SILENT = 1 << 0
+const int C_ADMIN  = 1 << 1
+const int C_FORCE  = 1 << 2
 
 struct CommandInfo {
     array<string> names
     bool functionref(entity, array<string>) fn
     int minArgs,
     int maxArgs
-    string usage
+    string usage,
+    string adminUsage,
     int flags
 }
 
@@ -39,9 +43,6 @@ struct CustomCommand {
     string text
 }
 
-//------------------------------------------------------------------------------
-// globals
-//------------------------------------------------------------------------------
 struct {
     bool debugEnabled
 
@@ -240,96 +241,104 @@ void function fm_Init() {
 
     file.jokeKillsEnabled = GetConVarBool("fm_joke_kills_enabled")
 
-    // add commands and callbacks
+    // define commands
     CommandInfo cmdHelp = NewCommandInfo(
         ["!help"],
         CommandHelp,
         0, 0,
-        "!help => get help"
+        "!help => get help", ""
     )
 
     CommandInfo cmdRules = NewCommandInfo(
         ["!rules"],
         CommandRules,
         0, 0,
-        "!rules => show rules"
+        "!rules => show rules", ""
     )
 
     CommandInfo cmdKick = NewCommandInfo(
         ["!kick"],
         CommandKick,
         1, 1,
-        "!kick <full or partial player name> => vote to kick a player"
+        "!kick <full or partial player name> => vote to kick a player",
+        "!kick <full or partial player name> [force] => vote to kick a player (or force)",
+        C_FORCE
     )
 
     CommandInfo cmdMaps = NewCommandInfo(
         ["!maps"],
         CommandMaps,
         0, 0,
-        "!maps => list available maps"
+        "!maps => list available maps", ""
     )
 
     CommandInfo cmdNextMap = NewCommandInfo(
         ["!nextmap", "!nm"],
         CommandNextMap,
         1, 3,
-        "!nextmap <full or partial map name> => vote for next map"
+        "!nextmap/!nm <full or partial map name> => vote for next map", ""
     )
 
     CommandInfo cmdSwitch = NewCommandInfo(
         ["!switch"],
         CommandSwitch,
         0, 0,
-        "!switch => join opposite team"
+        "!switch => join opposite team", ""
     )
 
     CommandInfo cmdBalance = NewCommandInfo(
         ["!teambalance", "!tb"],
         CommandBalance,
         0, 0,
-        "!balance => vote for team balance"
+        "!teambalance/!tb => vote for team balance",
+        "!teambalance/!tb [force] => vote for team balance (or force)",
+        C_FORCE
     )
 
     CommandInfo cmdExtend = NewCommandInfo(
         ["!extend"],
         CommandExtend,
         0, 0,
-        "!extend => vote to extend map time"
+        "!extend => vote to extend map time",
+        "!extend [force] => vote to extend map time (or force)",
+        C_FORCE
     )
 
     CommandInfo cmdSkip = NewCommandInfo(
         ["!skip"],
         CommandSkip,
         0, 0,
-        "!skip => vote to skip current map"
+        "!skip => vote to skip current map",
+        "!skip [force] => vote to skip current map (or force)",
+        C_FORCE
     )
 
     CommandInfo cmdBuffs = NewCommandInfo(
         ["!buffs"], 
         CommandBuffs,
         0, 0,
-        "!buffs => list buffs on server"
+        "!buffs => list buffs on server", ""
     )
 
     CommandInfo cmdNerfs = NewCommandInfo(
         ["!nerfs"], 
         CommandNerfs,
         0, 0,
-        "!nerfs => list nerfs on server"
+        "!nerfs => list nerfs on server", ""
     )
 
     CommandInfo cmdLatest = NewCommandInfo(
         ["!latest"],
         CommandLatest,
         0, 0,
-        "!latest => list latest buffs/nerfs on server"
+        "!latest => list latest buffs/nerfs on server", ""
     )
 
     CommandInfo cmdRoll = NewCommandInfo(
         ["!roll"],  
         CommandRoll,
         0, 0,
-        "!roll => roll a number between 0 and 100"
+        "!roll => roll a number between 0 and 100", ""
     )
 
     // admin commands
@@ -337,15 +346,15 @@ void function fm_Init() {
         ["!auth"],
         CommandAuth,
         1, 1,
-        "!auth <password> => authenticate yourself as an admin",
+        "!auth <password> => authenticate yourself as an admin", "",
         C_ADMIN | C_SILENT
     )
 
     CommandInfo cmdYell = NewCommandInfo(
         ["!yell"],  
         CommandYell,
-        1, -1,
-        "!yell ... => yell something",
+        1, NOMAX,
+        "!yell ... => yell something", "",
         C_ADMIN | C_SILENT
     )
 
@@ -353,7 +362,7 @@ void function fm_Init() {
         ["!slay"],
         CommandSlay,
         1, 1,
-        "!slay <full or partial player name> => kill a player",
+        "!slay <full or partial player name> => kill a player", "",
         C_ADMIN
     )
 
@@ -361,10 +370,11 @@ void function fm_Init() {
         ["!freeze"],
         CommandFreeze,
         1, 1,
-        "!freeze <full or partial player name> => freeze a player",
+        "!freeze <full or partial player name> => freeze a player", "",
         C_ADMIN
     )
 
+    // add commands and callbacks based on convars
     if (file.welcomeEnabled) {
         AddCallback_OnPlayerRespawned(Welcome_OnPlayerRespawned)
         AddCallback_OnClientDisconnected(Welcome_OnClientDisconnected)
@@ -496,17 +506,25 @@ void function fm_Init() {
 //------------------------------------------------------------------------------
 // command handling
 //------------------------------------------------------------------------------
-CommandInfo function NewCommandInfo(array<string> names, bool functionref(entity, array<string>) fn, int minArgs, int maxArgs, string usage, int flags = 0x0) {
+CommandInfo function NewCommandInfo(
+    array<string> names,
+    bool functionref(entity, array<string>) fn,
+    int minArgs, int maxArgs,
+    string usage, string adminUsage,
+    int flags = 0x0
+) {
     CommandInfo commandInfo
     commandInfo.names = names
     commandInfo.fn = fn
     commandInfo.minArgs = minArgs
     commandInfo.maxArgs = maxArgs
     commandInfo.usage = usage
+    commandInfo.adminUsage = adminUsage
     commandInfo.flags = flags
     return commandInfo
 }
 
+// spaghetti bolognese
 ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo) {
     if (IsLobby()) {
         return messageInfo
@@ -542,21 +560,50 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
             continue
         }
 
-        if (c.flags & C_ADMIN && !IsAdmin(player)) {
+        bool isAdminCmd = (c.flags & C_ADMIN) > 0
+        if (isAdminCmd && !IsAdmin(player)) {
             break
         }
 
         commandFound = true
-        messageInfo.shouldBlock = (c.flags & C_SILENT) > 0
 
-        if (c.flags & C_ADMIN && IsAdmin(player) && !IsAuthenticatedAdmin(player) && command != "!auth") {
+        bool isSilentCmd = (c.flags & C_SILENT) > 0
+        messageInfo.shouldBlock = isSilentCmd
+
+        if (isAdminCmd && IsNonAuthenticatedAdmin(player) && command != "!auth") {
             SendMessage(player, ErrorColor("authenticate first"))
             commandSuccess = false
             break
         }
 
-        if (args.len() < c.minArgs || (c.maxArgs != -1 && args.len() > c.maxArgs)) {
-            SendMessage(player, ErrorColor("usage: " + c.usage))
+        int maxArgs = c.maxArgs
+        bool isForceableCmd = (c.flags & C_FORCE) > 0;
+        if (IsAdmin(player) && isForceableCmd) {
+            maxArgs += 1
+            // check here if force is valid to avoid duplicate code in commands
+            if (args.len() == maxArgs) {
+                string force = args[maxArgs - 1]
+                if (force != "force") {
+                    SendMessage(player, ErrorColor("unknown option: " + force))
+                    commandSuccess = false
+                    break
+                }
+
+                if (IsNonAuthenticatedAdmin(player)) {
+                    SendMessage(player, ErrorColor("authenticate first"))
+                    commandSuccess = false
+                    break
+                }
+            }
+        }
+
+        if (args.len() < c.minArgs || (args.len() > maxArgs)) {
+            string usage = c.usage
+            if (IsAdmin(player) && c.adminUsage != "") {
+                usage = c.adminUsage
+            }
+
+            SendMessage(player, ErrorColor("usage: " + usage))
             commandSuccess = false
             break
         }
@@ -682,15 +729,22 @@ bool function CommandKick(entity player, array<string> args) {
         return false
     }
 
-    if (IsAdmin(target)) {
-        SendMessage(player, ErrorColor("you cannot kick an admin"))
-        return false
-    }
+    bool isForced = args.len() == 2
+    if (IsAuthenticatedAdmin(player) && isForced) {
+        // allow admins to force kick spoofed admins
+        if (IsAuthenticatedAdmin(target)) {
+            SendMessage(player, ErrorColor("you cannot kick an authenticated admin"))
+            return false
+        }
 
-    if (IsAuthenticatedAdmin(player)) {
         Log("[CommandKick] " + targetName + " kicked by " + player.GetPlayerName())
         KickPlayer(target)
         return true
+    }
+
+    if (IsAdmin(target)) {
+        SendMessage(player, ErrorColor("you cannot kick an admin"))
+        return false
     }
 
     if (GetPlayerArray().len() < file.kickMinPlayers) {
@@ -1017,7 +1071,8 @@ bool function CommandSwitch(entity player, array<string> args) {
 // balance
 //------------------------------------------------------------------------------
 bool function CommandBalance(entity player, array<string> args) {
-    if (IsAuthenticatedAdmin(player)) {
+    bool isForced = args.len() == 1
+    if (IsAuthenticatedAdmin(player) && isForced) {
         DoBalance()
         return true
     }
@@ -1194,7 +1249,8 @@ void function DoAutobalance(int fromTeam) {
 // extend
 //------------------------------------------------------------------------------
 bool function CommandExtend(entity player, array<string> args) {
-    if (IsAuthenticatedAdmin(player)) {
+    bool isForced = args.len() == 1
+    if (IsAuthenticatedAdmin(player) && isForced) {
         DoExtend()
         return true
     }
@@ -1242,7 +1298,8 @@ bool function CommandSkip(entity player, array<string> args) {
         return false
     }
     
-    if (IsAuthenticatedAdmin(player)) {
+    bool isForced = args.len() == 1
+    if (IsAuthenticatedAdmin(player) && isForced) {
         DoSkip()
         return true
     }
@@ -1600,6 +1657,14 @@ string function Green(string s) {
 
 bool function IsAdmin(entity player) {
     return file.adminUids.contains(player.GetUID())
+}
+
+bool function IsNonAuthenticatedAdmin(entity player) {
+    if (file.adminAuthEnabled) {
+        return IsAdmin(player) && !file.authenticatedAdmins.contains(player.GetUID())
+    }
+
+    return false
 }
 
 bool function IsAuthenticatedAdmin(entity player) {

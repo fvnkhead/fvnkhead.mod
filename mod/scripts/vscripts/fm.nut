@@ -1019,6 +1019,7 @@ void function NextMapHint_OnPlayerRespawned(entity player) {
 //------------------------------------------------------------------------------
 // switch
 //------------------------------------------------------------------------------
+// TODO: switch others
 bool function CommandSwitch(entity player, array<string> args) {
     string uid = player.GetUID()
     if (uid in file.switchCountTable) {
@@ -1601,25 +1602,25 @@ void function JokeKills_OnPlayerKilled(entity victim, entity attacker, var damag
     int damageSourceId = DamageInfo_GetDamageSourceIdentifier(damageInfo)
     string verb
     switch (damageSourceId) {
-        case eDamageSourceId.mp_weapon_grenade_sonar:
-            verb = "bladed"
-            break
+        //case eDamageSourceId.mp_weapon_grenade_sonar:
+        //    verb = "bladed"
+        //    break
         case eDamageSourceId.phase_shift:
-            verb = "phased"
+            verb = "got phased by"
             break
-        case eDamageSourceId.mp_weapon_arc_launcher:
-            verb = "shocked"
-            break
-        case eDamageSourceId.mp_weapon_mgl:
-            verb = "magnetized"
-            break
+        //case eDamageSourceId.mp_weapon_arc_launcher:
+        //    verb = "shocked"
+        //    break
+        //case eDamageSourceId.mp_weapon_mgl:
+        //    verb = "magnetized"
+        //    break
         default:
             return
     }
 
     string attackerName = attacker.GetPlayerName()
     string victimName = victim.GetPlayerName()
-    string msg = format("%s %s %s", attackerName, verb, victimName)
+    string msg = format("%s %s %s", victimName, verb, attackerName)
 
     AnnounceMessage(AnnounceColor(msg))
 }

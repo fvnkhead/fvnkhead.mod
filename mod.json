@@ -200,7 +200,7 @@
         },
         {
             "Name": "fm_joke_kills_enabled",
-            "DefaultValue": "0"
+            "DefaultValue": "1"
         }
     ],
     "Scripts": [

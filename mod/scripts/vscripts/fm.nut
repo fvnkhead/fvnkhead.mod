@@ -663,12 +663,27 @@ bool function CommandHelp(entity player, array<string> args) {
     string userHelp = "available commands: " + Join(userCommands, ", ")
     SendMessage(player, PrivateColor(userHelp))
 
-    if (!IsAdmin(player)) {
+    if (IsAdmin(player)) {
+        string adminHelp = "admin commands: " + Join(adminCommands, ", ")
+        SendMessage(player, PrivateColor(adminHelp))
         return true
     }
 
-    string adminHelp = "admin commands: " + Join(adminCommands, ", ")
-    SendMessage(player, PrivateColor(adminHelp))
+    array<string> onlineAdminNames = []
+    foreach (entity possibleAdmin in GetPlayerArray()) {
+        if (!IsAdmin(possibleAdmin)) {
+            continue
+        }
+
+        onlineAdminNames.append(possibleAdmin.GetPlayerName())
+    }
+
+    if (onlineAdminNames.len() == 0) {
+        return true
+    }
+
+    string adminsOnline = "admins online: " + Join(onlineAdminNames, ", ")
+    SendMessage(player, PrivateColor(adminsOnline))
 
     return true
 }

@@ -187,7 +187,7 @@
         },
         {
             "Name": "fm_roll_limit",
-            "DefaultValue": "3"
+            "DefaultValue": "5"
         },
 
         {

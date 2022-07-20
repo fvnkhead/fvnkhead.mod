@@ -1495,9 +1495,9 @@ bool function CommandRoll(entity player, array<string> args) {
     string msg = AnnounceColor(name + " rolled ") + ErrorColor("" + num)
     msg += AnnounceColor("")
     if (num == 1) {
-        msg += ", lol"
-    } else if (num == 6) {
-        msg += ", nice"
+        msg += ", " + ErrorColor("lol")
+    } else if (num == 69) {
+        msg += ", " + ErrorColor("nice")
     } else if (num == rollMax) {
         msg += ", what a " + ErrorColor("CHAD")
     } else if (f < 0.5) {

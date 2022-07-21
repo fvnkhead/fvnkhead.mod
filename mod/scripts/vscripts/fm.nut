@@ -567,13 +567,6 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     }
 
     entity player = messageInfo.player
-    if (file.mutedPlayers.contains(player.GetUID())) {
-        Log("[ChatCallback] muted message from " + player.GetPlayerName() + ": " + messageInfo.message)
-        SendMessage(player, ErrorColor("you are muted"))
-        messageInfo.shouldBlock = true
-        return messageInfo
-    }
-
     string message = strip(messageInfo.message)
     bool isCommand = format("%c", message[0]) == "!"
     if (!isCommand) {
@@ -582,6 +575,13 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
             SendMessage(player, ErrorColor("learn to type, mewn"))
             messageInfo.shouldBlock = true
         }
+
+        if (file.mutedPlayers.contains(player.GetUID())) {
+            Log("[ChatCallback] muted message from " + player.GetPlayerName() + ": " + messageInfo.message)
+            SendMessage(player, ErrorColor("you are muted"))
+            messageInfo.shouldBlock = true
+        }
+
         return messageInfo
     }
 
@@ -1491,16 +1491,6 @@ bool function CommandMute(entity player, array<string> args) {
     string targetSearchName = args[0]
     entity target = PlayerSearchStart(player, targetSearchName)
     if (target == null) {
-        return false
-    }
-
-    if (target == player) {
-        SendMessage(player, ErrorColor("you can't mute yourself"))
-        return false
-    }
-
-    if (IsAdmin(target)) {
-        SendMessage(player, ErrorColor("you can't mute an admin"))
         return false
     }
 

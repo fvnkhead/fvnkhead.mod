@@ -7,11 +7,12 @@ global function fm_Init
 //------------------------------------------------------------------------------
 // globals
 //------------------------------------------------------------------------------
-const int NOMAX    = 9999
+const int NOMAX = 9999
 
-const int C_SILENT = 1 << 0
-const int C_ADMIN  = 1 << 1
-const int C_FORCE  = 1 << 2
+const int C_SILENT   = 1 << 0
+const int C_ADMIN    = 1 << 1
+const int C_FORCE    = 1 << 2
+const int C_ADMINARG = 1 << 3
 
 struct CommandInfo {
     array<string> names
@@ -261,7 +262,7 @@ void function fm_Init() {
         CommandKick,
         1, 1,
         "!kick <full or partial player name> => vote to kick a player",
-        "!kick <full or partial player name> [force] => vote to kick a player (or force)",
+        "!kick <full or partial player name> (force) => vote to kick a player (or force)",
         C_FORCE
     )
 
@@ -283,7 +284,9 @@ void function fm_Init() {
         ["!switch"],
         CommandSwitch,
         0, 0,
-        "!switch => join opposite team", ""
+        "!switch => join opposite team",
+        "!switch (player) => join opposite team (or switch another player)",
+        C_ADMINARG
     )
 
     CommandInfo cmdBalance = NewCommandInfo(
@@ -291,7 +294,7 @@ void function fm_Init() {
         CommandBalance,
         0, 0,
         "!teambalance/!tb => vote for team balance",
-        "!teambalance/!tb [force] => vote for team balance (or force)",
+        "!teambalance/!tb (force) => vote for team balance (or force)",
         C_FORCE
     )
 
@@ -300,7 +303,7 @@ void function fm_Init() {
         CommandExtend,
         0, 0,
         "!extend => vote to extend map time",
-        "!extend [force] => vote to extend map time (or force)",
+        "!extend (force) => vote to extend map time (or force)",
         C_FORCE
     )
 
@@ -309,7 +312,7 @@ void function fm_Init() {
         CommandSkip,
         0, 0,
         "!skip => vote to skip current map",
-        "!skip [force] => vote to skip current map (or force)",
+        "!skip (force) => vote to skip current map (or force)",
         C_FORCE
     )
 
@@ -597,6 +600,16 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
             }
         }
 
+        bool hasAdminArg = (c.flags & C_ADMINARG) > 0
+        if (IsAdmin(player) && hasAdminArg) {
+            maxArgs += 1
+            if (args.len() == maxArgs && IsNonAuthenticatedAdmin(player)) {
+                SendMessage(player, ErrorColor("authenticate first"))
+                commandSuccess = false
+                break
+            }
+        }
+
         if (args.len() < c.minArgs || (args.len() > maxArgs)) {
             string usage = c.usage
             if (IsAdmin(player) && c.adminUsage != "") {
@@ -666,7 +679,6 @@ bool function CommandHelp(entity player, array<string> args) {
     if (IsAdmin(player)) {
         string adminHelp = "admin commands: " + Join(adminCommands, ", ")
         SendMessage(player, PrivateColor(adminHelp))
-        return true
     }
 
     array<string> onlineAdminNames = []
@@ -722,20 +734,12 @@ bool function CommandAuth(entity player, array<string> args) {
 // kick
 //------------------------------------------------------------------------------
 bool function CommandKick(entity player, array<string> args) {
-    string playerName = args[0]
-    array<entity> foundPlayers = FindPlayersBySubstring(playerName)
-
-    if (foundPlayers.len() == 0) {
-        SendMessage(player, ErrorColor("player '" + playerName + "' not found"))
+    string targetSearchName = args[0]
+    entity target = PlayerSearchStart(player, targetSearchName)
+    if (target == null) {
         return false
     }
 
-    if (foundPlayers.len() > 1) {
-        SendMessage(player, ErrorColor("multiple matches for player '" + playerName + "', be more specific"))
-        return false
-    }
-
-    entity target = foundPlayers[0]
     string targetUid = target.GetUID()
     string targetName = target.GetPlayerName()
 
@@ -1034,24 +1038,46 @@ void function NextMapHint_OnPlayerRespawned(entity player) {
 //------------------------------------------------------------------------------
 // switch
 //------------------------------------------------------------------------------
-// TODO: switch others
 bool function CommandSwitch(entity player, array<string> args) {
-    string uid = player.GetUID()
-    if (uid in file.switchCountTable) {
-        int switchCount = file.switchCountTable[uid]
+    entity target = player
+    bool isAdminSwitch = args.len() == 1
+    if (isAdminSwitch) {
+        string targetSearchName = args[0]
+        target = PlayerSearchStart(player, targetSearchName)
+        if (target == null) {
+            return false
+        }
+    }
+
+    string targetName = target.GetPlayerName()
+
+    string enoughMsg = "you've switched teams enough"
+    string flagMsg = "can't switch while you're holding the flag"
+    string teamMsg = "can't switch, there's enough players on the other team"
+    string switchMsg = targetName + " has switched teams"
+
+    if (isAdminSwitch) {
+        flagMsg = "can't switch " + targetName + ", they're holding a flag"
+        teamMsg = "can't switch " + targetName +  ", there's enough players on the other team"
+        switchMsg = targetName + "'s team has been switched"
+    }
+
+    string targetUid = target.GetUID()
+    if (!isAdminSwitch && targetUid in file.switchCountTable) {
+        int switchCount = file.switchCountTable[targetUid]
         if (switchCount >= file.switchLimit) {
-            SendMessage(player, ErrorColor("you've switched teams enough"))
+            SendMessage(player, ErrorColor(enoughMsg))
             return false
         }
     }
 
     // ctf
-    if (!file.switchKill && HasFlag(player)) {
-        SendMessage(player, ErrorColor("can't switch while you're holding the flag"))
+    if (!file.switchKill && HasFlag(target)) {
+        SendMessage(player, ErrorColor(flagMsg))
         return false
     }
 
-    int thisTeam = player.GetTeam()
+    int thisTeam = target.GetTeam()
     int otherTeam = GetOtherTeam(thisTeam)
 
     int thisTeamCount = GetPlayerArrayOfTeam(thisTeam).len()
@@ -1059,26 +1085,29 @@ bool function CommandSwitch(entity player, array<string> args) {
 
     int playerDiff = thisTeamCount - otherTeamCount
     if (playerDiff < file.switchDiff && otherTeamCount > 0) {
-        SendMessage(player, ErrorColor("can't switch, there's enough players on the other team"))
+        SendMessage(player, ErrorColor(teamMsg))
         return false
     }
 
     int switchCount
-    if (uid in file.switchCountTable) {
-        switchCount = file.switchCountTable[uid] + 1
+    if (targetUid in file.switchCountTable) {
+        switchCount = file.switchCountTable[targetUid] + 1
     } else {
         switchCount = 1
     }
-    file.switchCountTable[uid] <- switchCount
 
-    // ctf: if player is holding a flag, he gotta die *before* setting the team
-    if (file.switchKill && IsAlive(player)) {
-        player.Die()
+    if (!isAdminSwitch) {
+        file.switchCountTable[targetUid] <- switchCount
     }
 
-    SetTeam(player, otherTeam)
+    // ctf: if player is holding a flag, he gotta die *before* setting the team
+    if (file.switchKill && IsAlive(target)) {
+        target.Die()
+    }
 
-    AnnounceMessage(AnnounceColor(player.GetPlayerName() + " has switched teams"))
+    SetTeam(target, otherTeam)
+
+    AnnounceMessage(AnnounceColor(switchMsg))
 
     return true
 }
@@ -1428,20 +1457,12 @@ bool function CommandYell(entity player, array<string> args) {
 // slay
 //------------------------------------------------------------------------------
 bool function CommandSlay(entity player, array<string> args) {
-    string playerName = args[0]
-    array<entity> foundPlayers = FindPlayersBySubstring(playerName)
-
-    if (foundPlayers.len() == 0) {
-        SendMessage(player, ErrorColor("player '" + playerName + "' not found"))
+    string targetSearchName = args[0]
+    entity target = PlayerSearchStart(player, targetSearchName)
+    if (target == null) {
         return false
     }
 
-    if (foundPlayers.len() > 1) {
-        SendMessage(player, ErrorColor("multiple matches for player '" + playerName + "', be more specific"))
-        return false
-    }
-
-    entity target = foundPlayers[0]
     if (!IsAlive(target)) {
         SendMessage(player, ErrorColor(target.GetPlayerName() + " is already dead"))
         return false
@@ -1457,20 +1478,12 @@ bool function CommandSlay(entity player, array<string> args) {
 // freeze
 //------------------------------------------------------------------------------
 bool function CommandFreeze(entity player, array<string> args) {
-    string playerName = args[0]
-    array<entity> foundPlayers = FindPlayersBySubstring(playerName)
-
-    if (foundPlayers.len() == 0) {
-        SendMessage(player, ErrorColor("player '" + playerName + "' not found"))
+    string targetSearchName = args[0]
+    entity target = PlayerSearchStart(player, targetSearchName)
+    if (target == null) {
         return false
     }
 
-    if (foundPlayers.len() > 1) {
-        SendMessage(player, ErrorColor("multiple matches for player '" + playerName + "', be more specific"))
-        return false
-    }
-
-    entity target = foundPlayers[0]
     if (!IsAlive(target)) {
         SendMessage(player, ErrorColor(target.GetPlayerName() + " is dead"))
         return false
@@ -1617,18 +1630,9 @@ void function JokeKills_OnPlayerKilled(entity victim, entity attacker, var damag
     int damageSourceId = DamageInfo_GetDamageSourceIdentifier(damageInfo)
     string verb
     switch (damageSourceId) {
-        //case eDamageSourceId.mp_weapon_grenade_sonar:
-        //    verb = "bladed"
-        //    break
         case eDamageSourceId.phase_shift:
             verb = "got phased by"
             break
-        //case eDamageSourceId.mp_weapon_arc_launcher:
-        //    verb = "shocked"
-        //    break
-        //case eDamageSourceId.mp_weapon_mgl:
-        //    verb = "magnetized"
-        //    break
         default:
             return
     }
@@ -1643,6 +1647,22 @@ void function JokeKills_OnPlayerKilled(entity victim, entity attacker, var damag
 //------------------------------------------------------------------------------
 // utils
 //------------------------------------------------------------------------------
+
+entity function PlayerSearchStart(entity commandUser, string playerName) {
+    array<entity> foundPlayers = FindPlayersBySubstring(playerName)
+    if (foundPlayers.len() == 0) {
+        SendMessage(commandUser, ErrorColor("player '" + playerName + "' not found"))
+        return null
+    }
+
+    if (foundPlayers.len() > 1) {
+        SendMessage(commandUser, ErrorColor("multiple matches for player '" + playerName + "', be more specific"))
+        return null
+    }
+
+    return foundPlayers[0]
+}
+
 void function Log(string s) {
      print("[fvnkhead.mod] " + s)
 }

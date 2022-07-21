@@ -5,6 +5,7 @@
     "LoadPriority": 1,
     "RequiredOnClient": false,
     "ConVars": [
+        // user & admin commands
         {
             "Name": "fm_debug_enabled", 
             "DefaultValue": "1"
@@ -166,6 +167,16 @@
             "DefaultValue": "0"
         },
 
+        // admin commands
+        {
+            "Name": "fm_mute_enabled",
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_mute_save",
+            "DefaultValue": "1"
+        },
+
         {
             "Name": "fm_yell_enabled",
             "DefaultValue": "1"
@@ -190,6 +201,7 @@
             "DefaultValue": "5"
         },
 
+        // jokes
         {
             "Name": "fm_joke_pitfalls_enabled",
             "DefaultValue": "1"

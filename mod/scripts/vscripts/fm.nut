@@ -107,6 +107,10 @@ struct {
     bool rebalancedNerfsEnabled
     bool rebalancedLatestEnabled
 
+    bool muteEnabled
+    bool muteSave
+    array<string> mutedPlayers
+
     bool yellEnabled
 
     bool slayEnabled
@@ -217,6 +221,11 @@ void function fm_Init() {
     file.rebalancedBuffsEnabled = GetConVarBool("fm_rebalanced_buffs_enabled")
     file.rebalancedNerfsEnabled = GetConVarBool("fm_rebalanced_nerfs_enabled")
     file.rebalancedLatestEnabled = GetConVarBool("fm_rebalanced_latest_enabled")
+
+    // mute
+    file.muteEnabled = GetConVarBool("fm_mute_enabled")
+    file.muteSave = GetConVarBool("fm_mute_save")
+    file.mutedPlayers = []
 
     // yell
     file.yellEnabled = GetConVarBool("fm_yell_enabled")
@@ -353,6 +362,22 @@ void function fm_Init() {
         C_ADMIN | C_SILENT
     )
 
+    CommandInfo cmdMute = NewCommandInfo(
+        ["!mute"],
+        CommandMute,
+        1, 1,
+        "!mute <full or partial player name> => mute a player", "",
+        C_ADMIN
+    )
+
+    CommandInfo cmdUnmute = NewCommandInfo(
+        ["!unmute"],
+        CommandUnmute,
+        1, 1,
+        "!unmute <full or partial player name> => unmute a player", "",
+        C_ADMIN
+    )
+
     CommandInfo cmdYell = NewCommandInfo(
         ["!yell"],  
         CommandYell,
@@ -453,6 +478,14 @@ void function fm_Init() {
         file.commands.append(cmdLatest)
     }
 
+    if (file.muteEnabled) {
+        file.commands.append(cmdMute)
+        file.commands.append(cmdUnmute)
+        if (!file.muteSave) {
+            AddCallback_OnClientDisconnected(Mute_OnClientDisconnected)
+        }
+    }
+
     if (file.yellEnabled) {
         file.commands.append(cmdYell)
     }
@@ -534,6 +567,13 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     }
 
     entity player = messageInfo.player
+    if (file.mutedPlayers.contains(player.GetUID())) {
+        Log("[ChatCallback] muted message from " + player.GetPlayerName() + ": " + messageInfo.message)
+        SendMessage(player, ErrorColor("you are muted"))
+        messageInfo.shouldBlock = true
+        return messageInfo
+    }
+
     string message = strip(messageInfo.message)
     bool isCommand = format("%c", message[0]) == "!"
     if (!isCommand) {
@@ -744,7 +784,7 @@ bool function CommandKick(entity player, array<string> args) {
     string targetName = target.GetPlayerName()
 
     if (player == target) {
-        SendMessage(player, ErrorColor("you cannot kick yourself"))
+        SendMessage(player, ErrorColor("you can't kick yourself"))
         return false
     }
 
@@ -752,7 +792,7 @@ bool function CommandKick(entity player, array<string> args) {
     if (IsAuthenticatedAdmin(player) && isForced) {
         // allow admins to force kick spoofed admins
         if (IsAuthenticatedAdmin(target)) {
-            SendMessage(player, ErrorColor("you cannot kick an authenticated admin"))
+            SendMessage(player, ErrorColor("you can't kick an authenticated admin"))
             return false
         }
 
@@ -762,7 +802,7 @@ bool function CommandKick(entity player, array<string> args) {
     }
 
     if (IsAdmin(target)) {
-        SendMessage(player, ErrorColor("you cannot kick an admin"))
+        SendMessage(player, ErrorColor("you can't kick an admin"))
         return false
     }
 
@@ -1442,6 +1482,67 @@ void function PrintRebalancedEntryList(entity player, array<RebalancedEntry> ent
 
 string function FormatRebalancedEntry(RebalancedEntry entry) {
     return format("[%s: %s]", entry.name, entry.desc)
+}
+
+//------------------------------------------------------------------------------
+// mute
+//------------------------------------------------------------------------------
+bool function CommandMute(entity player, array<string> args) {
+    string targetSearchName = args[0]
+    entity target = PlayerSearchStart(player, targetSearchName)
+    if (target == null) {
+        return false
+    }
+
+    if (target == player) {
+        SendMessage(player, ErrorColor("you can't mute yourself"))
+        return false
+    }
+
+    if (IsAdmin(target)) {
+        SendMessage(player, ErrorColor("you can't mute an admin"))
+        return false
+    }
+
+    string targetName = target.GetPlayerName()
+    string targetUid = target.GetUID()
+
+    if (file.mutedPlayers.contains(targetUid)) {
+        SendMessage(player, ErrorColor(targetName + " is already muted"))
+        return false
+    }
+
+    file.mutedPlayers.append(targetUid)
+    AnnounceMessage(AnnounceColor(targetName + " has been muted"))
+
+    return true
+}
+
+bool function CommandUnmute(entity player, array<string> args) {
+    string targetSearchName = args[0]
+    entity target = PlayerSearchStart(player, targetSearchName)
+    if (target == null) {
+        return false
+    }
+
+    string targetName = target.GetPlayerName()
+    string targetUid = target.GetUID()
+    if (!file.mutedPlayers.contains(targetUid)) {
+        SendMessage(player, ErrorColor(targetName + " is not muted"))
+        return false
+    }
+
+    file.mutedPlayers.remove(file.mutedPlayers.find(targetUid))
+    AnnounceMessage(AnnounceColor(targetName + " is no longer muted"))
+
+    return false
+}
+
+void function Mute_OnClientDisconnected(entity player) {
+    string uid = player.GetUID()
+    if (file.mutedPlayers.contains(uid)) {
+        file.mutedPlayers.remove(file.mutedPlayers.find(uid))
+    }
 }
 
 //------------------------------------------------------------------------------

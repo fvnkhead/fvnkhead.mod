@@ -72,6 +72,7 @@ struct {
     bool mapsEnabled
     array<string> maps
     bool nextMapEnabled
+    array<string> nextMapOnlyMaps
     table<entity, string> nextMapVoteTable
     bool nextMapHintEnabled
     array<string> nextMapHintedPlayers
@@ -182,9 +183,21 @@ void function fm_Init() {
         file.maps.append(map)
     }
     file.nextMapEnabled = GetConVarBool("fm_nextmap_enabled")
+    file.nextMapOnlyMaps = []
     file.nextMapVoteTable = {}
     file.nextMapHintEnabled = GetConVarBool("fm_nextmap_hint_enabled")
     file.nextMapHintedPlayers = []
+
+    array<string> nextMapOnlyMaps = split(GetConVarString("fm_nextmap_only_maps"), ",")
+    foreach (string dirtyMap in nextMapOnlyMaps) {
+        string map = strip(dirtyMap)
+        if (!IsValidMap(map)) {
+            Log("ignoring invalid map '" + map + "'")
+            continue
+        }
+
+        file.nextMapOnlyMaps.append(map)
+    }
 
     // switch
     file.switchEnabled = GetConVarBool("fm_switch_enabled")
@@ -888,7 +901,7 @@ table<string, string> MAP_NAME_TABLE = {
     mp_coliseum_column = "Pillars",
     mp_colony02 = "Colony",
     mp_complex3 = "Complex",
-    mp_crashsite3 = "Crashsite",
+    mp_crashsite3 = "Crash Site",
     mp_drydock = "Drydock",
     mp_eden = "Eden",
     mp_forwardbase_kodai = "Forwardbase Kodai",
@@ -921,6 +934,10 @@ string function MapsString() {
         mapNames.append(MapName(map))
     }
 
+    foreach (string map in file.nextMapOnlyMaps) {
+        mapNames.append(MapName(map))
+    }
+
     return Join(mapNames, ", ")
 }
 
@@ -945,7 +962,7 @@ bool function CommandNextMap(entity player, array<string> args) {
     }
 
     string nextMap = foundMaps[0]
-    if (!file.maps.contains(nextMap)) {
+    if (!file.maps.contains(nextMap) && !file.nextMapOnlyMaps.contains(nextMap)) {
         SendMessage(player, ErrorColor(MapName(nextMap) + " is not in the map pool, available maps: " + MapsString()))
         return false
     }

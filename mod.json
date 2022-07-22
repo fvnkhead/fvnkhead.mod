@@ -78,11 +78,15 @@
         },
         {
             "Name": "fm_maps",
-            "DefaultValue": "mp_lf_stacks, mp_lf_deck, mp_lf_uma"
+            "DefaultValue": "mp_glitch,mp_angel_city,mp_eden,mp_wargames"
         },
         {
             "Name": "fm_nextmap_enabled",
             "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_nextmap_only_maps", // Maps not in normal rotation, only by voting
+            "DefaultValue": "mp_lf_stacks,mp_lf_uma,mp_lf_deck,mp_lf_township"
         },
         {
             "Name": "fm_nextmap_hint_enabled",

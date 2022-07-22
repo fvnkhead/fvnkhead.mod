@@ -19,11 +19,11 @@ void function fm_RebalancedInit() {
     Buff("archer", "dumbfire enabled, splash reduced")
 
     Nerf("melee",         "dmg 100 => 60")
-    Nerf("car",           "dmg 25 => 14")
-    Nerf("r97",           "dmg 20 => 13")
+    Nerf("car",           "dmg 25 => 15")
+    Nerf("r97",           "dmg 20 => 14")
     Nerf("alternator",    "dmg 35 => 22")
     Nerf("volt",          "dmg 25 => 16")
-    Nerf("r201 & r101",   "dmg 25 => 20")
+    Nerf("r201 & r101",   "dmg 25 => 18")
     Nerf("flatline",      "dmg 30 => 20")
     Nerf("g2",            "more falloff")
     Nerf("hemlok",        "dmg 33 => 25")
@@ -33,14 +33,13 @@ void function fm_RebalancedInit() {
     Nerf("eva8",          "dmg 200 => 140")
     Nerf("mozam",         "dmg 30 => 25")
     Nerf("p2016",         "dmg 30 => 20")
-    Nerf("re45",          "dmg 20 => 12")
+    Nerf("re45",          "dmg 20 => 13")
 
-    Latest("pulse blade", "50% faster recharge")
-    Latest("thunderbolt", "direct hit dmg 70 => 100")
     Latest("archer", "dumbfire enabled, splash reduced")
-    Latest("alternator",  "dmg 35 => 22")
-    Latest("r201 & r101", "dmg 25 => 20")
-    Latest("kraber",      "previous buff removed")
+    Latest("r201 & r101", "-2 dmg")
+    Latest("car", "+1 dmg")
+    Latest("r97", "+1 dmg")
+    Latest("re45", "+1 dmg")
 }
 
 void function Buff(string name, string desc) {

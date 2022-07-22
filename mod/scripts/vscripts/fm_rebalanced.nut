@@ -37,10 +37,10 @@ void function fm_RebalancedInit() {
     Nerf("re45",          "dmg 20 => 13")
 
     Latest("archer", "dumbfire enabled, splash reduced")
-    Buff("mgl", "explosion damage 35 => 55")
+    Latest("mgl", "explosion damage 35 => 55")
     Latest("r201 & r101", "-2 dmg")
     Latest("re45", "+1 dmg")
-    Nerf("volt", "+2 dmg")
+    Latest("volt", "+2 dmg")
 }
 
 void function Buff(string name, string desc) {

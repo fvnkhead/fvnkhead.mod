@@ -17,12 +17,13 @@ void function fm_RebalancedInit() {
     Buff("pulse blade",   "50% faster recharge")
     Buff("thunderbolt",   "direct hit dmg 70 => 100")
     Buff("archer", "dumbfire enabled, splash reduced")
+    Buff("mgl", "explosion damage 35 => 55")
 
     Nerf("melee",         "dmg 100 => 60")
-    Nerf("car",           "dmg 25 => 15")
-    Nerf("r97",           "dmg 20 => 14")
+    Nerf("car",           "dmg 25 => 14")
+    Nerf("r97",           "dmg 20 => 13")
     Nerf("alternator",    "dmg 35 => 22")
-    Nerf("volt",          "dmg 25 => 16")
+    Nerf("volt",          "dmg 25 => 18")
     Nerf("r201 & r101",   "dmg 25 => 18")
     Nerf("flatline",      "dmg 30 => 20")
     Nerf("g2",            "more falloff")
@@ -36,10 +37,10 @@ void function fm_RebalancedInit() {
     Nerf("re45",          "dmg 20 => 13")
 
     Latest("archer", "dumbfire enabled, splash reduced")
+    Buff("mgl", "explosion damage 35 => 55")
     Latest("r201 & r101", "-2 dmg")
-    Latest("car", "+1 dmg")
-    Latest("r97", "+1 dmg")
     Latest("re45", "+1 dmg")
+    Nerf("volt", "+2 dmg")
 }
 
 void function Buff(string name, string desc) {

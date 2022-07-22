@@ -1654,6 +1654,7 @@ bool function CommandRoll(entity player, array<string> args) {
 table<string, string> PITFALL_MAP_SUBJECT_TABLE = {
     mp_glitch            = "into the pit",
     mp_wargames          = "into the pit",
+    mp_crashsite3        = "into the pit",
     mp_drydock           = "off the map",
     mp_relic02           = "off the map",
     mp_complex3          = "off the map",

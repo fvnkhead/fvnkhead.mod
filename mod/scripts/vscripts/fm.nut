@@ -967,6 +967,11 @@ bool function CommandNextMap(entity player, array<string> args) {
         return false
     }
 
+    if (mapName == "anal") {
+        AnnounceMessage(AnnounceColor(player.GetPlayerName() + " tried the funny"))
+        return false
+    }
+
     file.nextMapVoteTable[player] <- nextMap
     AnnounceMessage(AnnounceColor(player.GetPlayerName() + " wants to play on " + MapName(nextMap)))
     return true;

@@ -14,6 +14,7 @@ void function fm_RebalancedInit() {
     Buff("smr",           "explosion dmg 15 => 20")
     Buff("b3 wingman",    "fire rate 2.6 => 3.7")
     Buff("arc grenade",   "explodes on impact")
+    Buff("satchel",   "pilot damage 125 => 140")
     Buff("pulse blade",   "50% faster recharge")
     Buff("thunderbolt",   "direct hit dmg 70 => 100")
     Buff("archer", "dumbfire enabled, splash reduced")
@@ -31,16 +32,18 @@ void function fm_RebalancedInit() {
     Nerf("spitfire",      "dmg 35 => 25")
     Nerf("devotion",      "dmg 25 => 20")
     Nerf("dmr",           "dmg 55 => 45")
-    Nerf("eva8",          "dmg 200 => 140")
+    Nerf("eva8",          "dmg 200 => 160")
     Nerf("mozam",         "dmg 30 => 25")
     Nerf("p2016",         "dmg 30 => 20")
     Nerf("re45",          "dmg 20 => 13")
+    Nerf("gravstar",      "25% slower recharge")
 
-    Latest("archer", "dumbfire enabled, splash reduced")
-    Latest("mgl", "explosion damage 35 => 55")
+    Latest("mgl", "explosion dmg 35 => 55")
     Latest("r201 & r101", "-2 dmg")
     Latest("re45", "+1 dmg")
     Latest("volt", "+2 dmg")
+    Latest("satchel", "+15 pilot dmg")
+    Latest("gravstar", "25% slower recharge")
 }
 
 void function Buff(string name, string desc) {

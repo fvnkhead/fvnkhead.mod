@@ -1093,7 +1093,10 @@ void function NextMapHint_OnPlayerRespawned(entity player) {
         return
     }
 
-    SendMessage(player, PrivateColor("hint: you can use !nextmap to vote for the next map"))
+    if (!(player in file.nextMapVoteTable)) {
+        SendMessage(player, PrivateColor("hint: use !nextmap/!nm to vote for next map"))
+    }
+
     file.nextMapHintedPlayers.append(uid)
 }
 

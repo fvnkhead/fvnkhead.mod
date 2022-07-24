@@ -1732,9 +1732,9 @@ void function Marvin_DeathCallback(entity victim, var damageInfo) {
     } else if (count == 2) {
         msg = playerName + " killed a marvin, again"
     } else if (count >= 5) {
-        msg = playerName + " killed all the marvins >:("
+        msg = playerName + " killed all the marvins"
     } else if (file.marvinKillsTotal >= 5) {
-        msg = "all the marvins have been killed :("
+        msg = "all the marvins have been killed"
     }
 
     AnnounceMessage(AnnounceColor(msg))

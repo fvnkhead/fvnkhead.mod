@@ -32,6 +32,10 @@
             "Name": "fm_welcome",
             "DefaultValue": "welcome! see !help for available commands"
         },
+        {
+            "Name": "fm_welcome_note",
+            "DefaultValue": "chat commands don't always work when you're dead"
+        },
 
         {
             "Name": "fm_rules_enabled",

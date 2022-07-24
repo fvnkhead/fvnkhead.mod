@@ -56,6 +56,7 @@ struct {
 
     bool welcomeEnabled
     string welcome
+    string welcomeNote
     array<string> welcomedPlayers
 
     bool rulesEnabled
@@ -153,6 +154,7 @@ void function fm_Init() {
     // welcome
     file.welcomeEnabled = GetConVarBool("fm_welcome_enabled")
     file.welcome = GetConVarString("fm_welcome")
+    file.welcomeNote = GetConVarString("fm_welcome_note")
     file.welcomedPlayers = []
 
     // rules
@@ -697,6 +699,10 @@ void function Welcome_OnPlayerRespawned(entity player) {
     }
 
     SendMessage(player, PrivateColor(file.welcome))
+    if (file.welcomeNote != "") {
+        SendMessage(player, ErrorColor("note: ") + PrivateColor(file.welcomeNote))
+    }
+
     file.welcomedPlayers.append(uid)
 }
 

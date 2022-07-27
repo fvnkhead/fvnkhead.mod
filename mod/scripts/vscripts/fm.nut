@@ -446,10 +446,12 @@ void function fm_Init() {
         AddCallback_OnClientDisconnected(Kick_OnClientDisconnected)
     }
 
-    if (file.maps.len() > 0) {
+    int totalMaps = file.maps.len() + file.nextMapOnlyMaps.len()
+    if (totalMaps > 0) {
         AddCallback_GameStateEnter(eGameState.Postmatch, PostmatchChangeMap)
     }
-    if (file.mapsEnabled && file.maps.len() > 1) {
+
+    if (file.mapsEnabled && totalMaps > 1) {
         file.commands.append(cmdMaps)
         if (file.nextMapEnabled) {
             file.commands.append(cmdNextMap)
@@ -483,7 +485,7 @@ void function fm_Init() {
         AddCallback_OnClientDisconnected(Extend_OnClientDisconnected)
     }
 
-    if (file.skipEnabled && file.maps.len() > 1) {
+    if (file.skipEnabled && totalMaps > 1) {
         file.commands.append(cmdSkip)
         AddCallback_OnClientDisconnected(Skip_OnClientDisconnected)
     }

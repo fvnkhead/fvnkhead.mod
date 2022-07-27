@@ -25,6 +25,11 @@
         },
 
         {
+            "Name": "fm_admin_auth_unauth_chat_block",
+            "DefaultValue": "1"
+        },
+
+        {
             "Name": "fm_welcome_enabled",
             "DefaultValue": "1"
         },
@@ -33,8 +38,8 @@
             "DefaultValue": "welcome! see !help for available commands"
         },
         {
-            "Name": "fm_welcome_note",
-            "DefaultValue": "chat commands don't always work when you're dead"
+            "Name": "fm_welcome_notes",
+            "DefaultValue": "testing new network configuration on servers, expect lag/ping issues|chat commands sometimes don't work when you're dead"
         },
 
         {

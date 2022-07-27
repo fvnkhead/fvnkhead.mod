@@ -51,12 +51,13 @@ struct {
     bool adminAuthEnabled
     string adminPassword
     array<string> authenticatedAdmins
+    bool adminAuthUnauthChatBlock
 
     array<CommandInfo> commands
 
     bool welcomeEnabled
     string welcome
-    string welcomeNote
+    array<string> welcomeNotes
     array<string> welcomedPlayers
 
     bool rulesEnabled
@@ -150,11 +151,16 @@ void function fm_Init() {
     file.adminAuthEnabled = GetConVarBool("fm_admin_auth_enabled")
     file.adminPassword = GetConVarString("fm_admin_password")
     file.authenticatedAdmins = []
+    file.adminAuthUnauthChatBlock = GetConVarBool("fm_admin_auth_unauth_chat_block")
 
     // welcome
     file.welcomeEnabled = GetConVarBool("fm_welcome_enabled")
     file.welcome = GetConVarString("fm_welcome")
-    file.welcomeNote = GetConVarString("fm_welcome_note")
+    file.welcomeNotes = []
+    array<string> welcomeNotes = split(GetConVarString("fm_welcome_notes"), "|")
+    foreach (string welcomeNote in welcomeNotes) {
+        file.welcomeNotes.append(strip(welcomeNote))
+    }
     file.welcomedPlayers = []
 
     // rules
@@ -418,13 +424,14 @@ void function fm_Init() {
     )
 
     // add commands and callbacks based on convars
+    if (file.adminAuthEnabled) {
+        file.commands.append(cmdAuth)
+        AddCallback_OnClientDisconnected(Admin_OnClientDisconnected)
+    }
+
     if (file.welcomeEnabled) {
         AddCallback_OnPlayerRespawned(Welcome_OnPlayerRespawned)
         AddCallback_OnClientDisconnected(Welcome_OnClientDisconnected)
-    }
-
-    if (file.adminAuthEnabled) {
-        file.commands.append(cmdAuth)
     }
 
     file.commands.append(cmdHelp)
@@ -583,6 +590,17 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 
     entity player = messageInfo.player
     string message = strip(messageInfo.message)
+    array<string> args = split(message, " ")
+    string command = args[0].tolower()
+    args.remove(0)
+
+    // prevent spoofers from pretending to be admins
+    if (file.adminAuthEnabled && file.adminAuthUnauthChatBlock && IsNonAuthenticatedAdmin(player) && command != "!auth") {
+        SendMessage(player, ErrorColor("authenticate first"))
+        messageInfo.shouldBlock = true
+        return messageInfo
+    }
+
     bool isCommand = format("%c", message[0]) == "!"
     if (!isCommand) {
         // prevent mewn from leaking the admin password
@@ -599,10 +617,6 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 
         return messageInfo
     }
-
-    array<string> args = split(message, " ")
-    string command = args[0].tolower()
-    args.remove(0)
 
     foreach (CustomCommand c in file.customCommands) {
         if (c.name == command) {
@@ -690,6 +704,20 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 }
 
 //------------------------------------------------------------------------------
+// admins
+//------------------------------------------------------------------------------
+void function Admin_OnClientDisconnected(entity player) {
+    if (!IsAdmin(player)) {
+        return
+    }
+
+    string uid = player.GetUID()
+    if (file.authenticatedAdmins.contains(uid)) {
+        file.authenticatedAdmins.remove(file.authenticatedAdmins.find(uid))
+    }
+}
+
+//------------------------------------------------------------------------------
 // welcome
 //------------------------------------------------------------------------------
 void function Welcome_OnPlayerRespawned(entity player) {
@@ -699,8 +727,11 @@ void function Welcome_OnPlayerRespawned(entity player) {
     }
 
     SendMessage(player, PrivateColor(file.welcome))
-    if (file.welcomeNote != "") {
-        SendMessage(player, ErrorColor("note: ") + PrivateColor(file.welcomeNote))
+    bool hasNoteNumber = file.welcomeNotes.len() > 1
+    for (int i = 0; i < file.welcomeNotes.len(); i++) {
+        string notePrefix = hasNoteNumber ? format("note %d: ", i + 1) : "note: "
+        string note = ErrorColor(notePrefix) + PrivateColor(file.welcomeNotes[i])
+        SendMessage(player, note)
     }
 
     file.welcomedPlayers.append(uid)
@@ -746,7 +777,12 @@ bool function CommandHelp(entity player, array<string> args) {
             continue
         }
 
-        onlineAdminNames.append(possibleAdmin.GetPlayerName())
+        string displayName = possibleAdmin.GetPlayerName()
+        if (IsNonAuthenticatedAdmin(possibleAdmin)) {
+            displayName += ErrorColor("(?)")
+        }
+
+        onlineAdminNames.append(displayName)
     }
 
     if (onlineAdminNames.len() == 0) {
@@ -1808,6 +1844,10 @@ string function PrivateColor(string s) {
 
 string function AnnounceColor(string s) {
     return "\x1b[95m" + s
+}
+
+string function White(string s) {
+    return "\x1b[0m" + s
 }
 
 string function Green(string s) {

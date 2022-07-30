@@ -607,6 +607,12 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     entity player = messageInfo.player
     string message = strip(messageInfo.message)
     array<string> args = split(message, " ")
+
+    // fuzz check
+    if (args.len() == 0) {
+        return messageInfo
+    }
+
     string command = args[0].tolower()
     args.remove(0)
 

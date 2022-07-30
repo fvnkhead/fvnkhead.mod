@@ -18,7 +18,7 @@ void function fm_RebalancedInit() {
     Buff("pulse blade",   "50% faster recharge")
     Buff("thunderbolt",   "direct hit dmg 70 => 100")
     Buff("archer", "dumbfire enabled, splash reduced")
-    Buff("mgl", "explosion damage 35 => 55")
+    Buff("mgl", "explosion damage 35 => 60")
 
     Nerf("melee",         "dmg 100 => 60")
     Nerf("car",           "dmg 25 => 14")
@@ -35,13 +35,11 @@ void function fm_RebalancedInit() {
     Nerf("eva8",          "dmg 200 => 160")
     Nerf("mozam",         "dmg 30 => 25")
     Nerf("p2016",         "dmg 30 => 20")
-    Nerf("re45",          "dmg 20 => 13")
+    Nerf("re45",          "dmg 20 => 12")
     Nerf("gravstar",      "25% slower recharge")
 
-    Latest("mgl", "explosion dmg 35 => 55")
-    Latest("r201 & r101", "-2 dmg")
-    Latest("re45", "+1 dmg")
-    Latest("volt", "+2 dmg")
+    Latest("mgl", "explosion dmg 35 => 60")
+    Latest("re45", "-1 dmg")
     Latest("satchel", "+15 pilot dmg")
     Latest("gravstar", "25% slower recharge")
 }

@@ -226,6 +226,20 @@
         {
             "Name": "fm_joke_kills_enabled",
             "DefaultValue": "1"
+        },
+
+        // misc
+        {
+            "Name": "fm_antispam_enabled",
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_antispam_period",
+            "DefaultValue": "10"
+        },
+        {
+            "Name": "fm_antispam_limit",
+            "DefaultValue": "10"
         }
     ],
     "Scripts": [

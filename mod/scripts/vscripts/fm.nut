@@ -135,6 +135,11 @@ struct {
 
     bool customCommandsEnabled
     array<CustomCommand> customCommands
+
+    bool antispamEnabled
+    int antispamPeriod
+    int antispamLimit
+    table< entity, array<float> > playerMessageTimes
 } file
 
 //------------------------------------------------------------------------------
@@ -271,6 +276,12 @@ void function fm_Init() {
     file.marvinKillsTotal = 0
 
     file.jokeKillsEnabled = GetConVarBool("fm_joke_kills_enabled")
+
+    // antispam
+    file.antispamEnabled = GetConVarBool("fm_antispam_enabled")
+    file.antispamPeriod = GetConVarInt("fm_antispam_period")
+    file.antispamLimit = GetConVarInt("fm_antispam_limit")
+    file.playerMessageTimes = {}
 
     // define commands
     CommandInfo cmdHelp = NewCommandInfo(
@@ -561,6 +572,9 @@ void function fm_Init() {
 
     // the beef
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
+    if (file.antispamEnabled) {
+        AddCallback_OnReceivedSayTextMessage(CheckSpam)
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -701,6 +715,47 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     } else if (!commandSuccess) {
         messageInfo.shouldBlock = true
     }
+
+    return messageInfo
+}
+
+ClServer_MessageStruct function CheckSpam(ClServer_MessageStruct messageInfo) {
+    // only visible messages are counted towards spam
+    if (messageInfo.shouldBlock) {
+        return messageInfo
+    }
+
+    entity player = messageInfo.player
+    float latestTime = Time()
+    array<float> messageTimes = [latestTime]
+    if (player in file.playerMessageTimes) {
+        messageTimes = file.playerMessageTimes[player]
+        messageTimes.append(latestTime)
+    }
+
+    file.playerMessageTimes[player] <- messageTimes
+
+    // don't do any further processing if limit hasn't been reached
+    if (messageTimes.len() < file.antispamLimit) {
+        return messageInfo
+    }
+
+    // remove message times older than antispam period
+    float cutoff = latestTime - float(file.antispamPeriod)
+    while (messageTimes.len() > 0 && messageTimes[0] < cutoff) {
+        messageTimes.remove(0)
+    }
+
+    // valid message if limit hasn't been reached during period
+    if (messageTimes.len() < file.antispamLimit) {
+        return messageInfo
+    }
+
+    // take action at this point
+    string playerName = player.GetPlayerName()
+    ServerCommand("kick " + playerName)
+    Log("[CheckSpam] " + playerName + " kicked due to spam")
+    AnnounceMessage(AnnounceColor(playerName + " has been kicked due to spam"))
 
     return messageInfo
 }
@@ -1608,7 +1663,7 @@ void function Mute_OnClientDisconnected(entity player) {
 // yell
 //------------------------------------------------------------------------------
 bool function CommandYell(entity player, array<string> args) {
-    string msg = Join(args, " ")
+    string msg = Join(args, " ").toupper()
     AnnounceHUD(msg, 255, 0, 0)
     return true
 }

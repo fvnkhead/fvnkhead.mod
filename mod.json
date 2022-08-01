@@ -206,6 +206,11 @@
         },
 
         {
+            "Name": "fm_fast_enabled",
+            "DefaultValue": "1"
+        },
+
+        {
             "Name": "fm_roll_enabled",
             "DefaultValue": "1"
         },

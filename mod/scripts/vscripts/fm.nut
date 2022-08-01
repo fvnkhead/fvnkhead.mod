@@ -120,6 +120,8 @@ struct {
 
     bool freezeEnabled
 
+    bool fastEnabled
+
     bool rollEnabled
     int rollLimit
     table<string, int> rollCountTable
@@ -261,6 +263,9 @@ void function fm_Init() {
 
     // freeze
     file.freezeEnabled = GetConVarBool("fm_freeze_enabled")
+
+    // fast
+    file.fastEnabled = GetConVarBool("fm_fast_enabled")
 
     // roll
     file.rollEnabled = GetConVarBool("fm_roll_enabled")
@@ -434,6 +439,14 @@ void function fm_Init() {
         C_ADMIN
     )
 
+    CommandInfo cmdFast = NewCommandInfo(
+        ["!fast"],
+        CommandFast,
+        0, 0,
+        "!fast => everyone goes fast", "",
+        C_ADMIN
+    )
+
     // add commands and callbacks based on convars
     if (file.adminAuthEnabled) {
         file.commands.append(cmdAuth)
@@ -531,6 +544,10 @@ void function fm_Init() {
 
     if (file.freezeEnabled) {
         file.commands.append(cmdFreeze)
+    }
+
+    if (file.fastEnabled) {
+        file.commands.append(cmdFast)
     }
 
     if (file.rollEnabled) {
@@ -1716,6 +1733,22 @@ bool function CommandFreeze(entity player, array<string> args) {
 
     AnnounceMessage(AnnounceColor(target.GetPlayerName() + " has been frozen"))
 
+    return true
+}
+
+//------------------------------------------------------------------------------
+// fast
+//------------------------------------------------------------------------------
+bool function CommandFast(entity _player, array<string> _args) {
+    foreach (player in GetPlayerArray()) {
+        if (!IsAlive(player)) {
+            continue
+        }
+
+        StimPlayer(player, 9999)
+    }
+
+    AnnounceMessage(AnnounceColor("*initial d - running in the 90s is playing*"))
     return true
 }
 

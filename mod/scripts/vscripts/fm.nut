@@ -322,11 +322,11 @@ void function fm_Init() {
     )
 
     CommandInfo cmdSwitch = NewCommandInfo(
-        ["!switch"],
+        ["!switch", "!sw"],
         CommandSwitch,
         0, 0,
-        "!switch => join opposite team",
-        "!switch (player) => join opposite team (or switch another player)",
+        "!switch/!sw => join opposite team",
+        "!switch/!sw (player) => join opposite team (or switch another player)",
         C_ADMINARG
     )
 
@@ -340,11 +340,11 @@ void function fm_Init() {
     )
 
     CommandInfo cmdExtend = NewCommandInfo(
-        ["!extend"],
+        ["!extend", "!ex"],
         CommandExtend,
         0, 0,
-        "!extend => vote to extend map time",
-        "!extend (force) => vote to extend map time (or force)",
+        "!extend/!ex => vote to extend map time",
+        "!extend/!ex (force) => vote to extend map time (or force)",
         C_FORCE
     )
 

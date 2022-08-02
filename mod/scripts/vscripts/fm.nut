@@ -1147,16 +1147,15 @@ string function DrawNextMapFromVoteTable() {
 string function NextMapCandidatesString() {
     array<NextMapScore> scores = NextMapCandidates()
     int totalVotes = file.nextMapVoteTable.len()
-    string msg = ""
+    array<string> chanceStrings = []
     for (int i = 0; i < scores.len(); i++) {
         NextMapScore score = scores[i]
-        msg += MapName(score.map) + " (" + score.votes + "/" + totalVotes + ")"
-        if (i < scores.len() - 1) {
-            msg += ", "
-        }
+        float chance = 100 * (float(score.votes) / float(totalVotes))
+        string chanceString = format("%s (%.0f%%)", MapName(score.map), chance)
+        chanceStrings.append(chanceString)
     }
 
-    return msg
+    return Join(chanceStrings, ", ")
 }
 
 array<NextMapScore> function NextMapCandidates() {
@@ -1191,7 +1190,7 @@ int function NextMapScoreSort(NextMapScore a, NextMapScore b) {
 
 void function NextMap_OnWinnerDetermined() {
     if (file.nextMapVoteTable.len() > 0) {
-        AnnounceMessage(AnnounceColor("next map candidates: " + NextMapCandidatesString()))
+        AnnounceMessage(AnnounceColor("next map chances: " + NextMapCandidatesString()))
     }
 }
 

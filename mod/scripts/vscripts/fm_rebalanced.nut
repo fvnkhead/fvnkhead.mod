@@ -10,7 +10,6 @@ global array<RebalancedEntry> NERF_LIST = []
 global array<RebalancedEntry> LATEST_LIST = []
 
 void function fm_RebalancedInit() {
-    Buff("double take",   "fire rate 2.0 => 2.4")
     Buff("smr",           "explosion dmg 15 => 20")
     Buff("b3 wingman",    "fire rate 2.6 => 3.7")
     Buff("arc grenade",   "explodes on impact")
@@ -21,27 +20,29 @@ void function fm_RebalancedInit() {
     Buff("mgl", "explosion damage 35 => 60")
 
     Nerf("melee",         "dmg 100 => 60")
-    Nerf("car",           "dmg 25 => 14")
-    Nerf("r97",           "dmg 20 => 13")
-    Nerf("alternator",    "dmg 35 => 22")
+    Nerf("car",           "dmg 25 => 15")
+    Nerf("r97",           "dmg 20 => 14")
+    Nerf("alternator",    "dmg 35 => 25")
     Nerf("volt",          "dmg 25 => 18")
-    Nerf("r201 & r101",   "dmg 25 => 18")
+    Nerf("r201 & r101",   "dmg 25 => 20")
     Nerf("flatline",      "dmg 30 => 20")
     Nerf("g2",            "more falloff")
     Nerf("hemlok",        "dmg 33 => 25")
-    Nerf("spitfire",      "dmg 35 => 25")
-    Nerf("devotion",      "dmg 25 => 20")
-    Nerf("dmr",           "dmg 55 => 45")
+    Nerf("spitfire",      "dmg 35 => 28")
+    Nerf("devotion",      "dmg 25 => 22")
+    Nerf("dmr",           "more falloff")
     Nerf("eva8",          "dmg 200 => 160")
     Nerf("mozam",         "dmg 30 => 25")
     Nerf("p2016",         "dmg 30 => 20")
     Nerf("re45",          "dmg 20 => 12")
     Nerf("gravstar",      "25% slower recharge")
 
-    Latest("mgl", "explosion dmg 35 => 60")
-    Latest("re45", "-1 dmg")
-    Latest("satchel", "+15 pilot dmg")
-    Latest("gravstar", "25% slower recharge")
+    Latest("double take", "removed fire rate buff")
+    Latest("car and r97", "+1 dmg")
+    Latest("alternator", "+3 dmg")
+    Latest("dmr", "removed dmg nerf, increased falloff")
+    Latest("spitfire", "+3 dmg")
+    Latest("devotion", "+2 dmg")
 }
 
 void function Buff(string name, string desc) {

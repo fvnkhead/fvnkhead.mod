@@ -1050,21 +1050,34 @@ bool function IsValidMap(string map) {
     return map in MAP_NAME_TABLE
 }
 
-string function MapsString() {
+string function MapsString(array<string> maps) {
     array<string> mapNames = []
-    foreach (string map in file.maps) {
-        mapNames.append(MapName(map))
-    }
-
-    foreach (string map in file.nextMapOnlyMaps) {
+    foreach (string map in maps) {
         mapNames.append(MapName(map))
     }
 
     return Join(mapNames, ", ")
 }
 
+array<string> function AllMaps() {
+    array<string> allMaps = []
+    foreach (map in file.maps) {
+        allMaps.append(map)
+    }
+    foreach (map in file.nextMapOnlyMaps) {
+        allMaps.append(map)
+    }
+
+    return allMaps
+}
+
 bool function CommandMaps(entity player, array<string> args) {
-    SendMessage(player, PrivateColor(MapsString()))
+    string mapsInRotation = MapsString(file.maps)
+    SendMessage(player, PrivateColor("maps in rotation: " + mapsInRotation))
+    if (file.nextMapOnlyMaps.len() > 0) {
+        string voteOnlyMaps = MapsString(file.nextMapOnlyMaps)
+        SendMessage(player, PrivateColor("maps by vote only: " + voteOnlyMaps))
+    }
 
     return true
 }
@@ -1085,7 +1098,8 @@ bool function CommandNextMap(entity player, array<string> args) {
 
     string nextMap = foundMaps[0]
     if (!file.maps.contains(nextMap) && !file.nextMapOnlyMaps.contains(nextMap)) {
-        SendMessage(player, ErrorColor(MapName(nextMap) + " is not in the map pool, available maps: " + MapsString()))
+        string mapsAvailable = MapsString(AllMaps())
+        SendMessage(player, ErrorColor(MapName(nextMap) + " is not in the map pool, available maps: " + mapsAvailable))
         return false
     }
 

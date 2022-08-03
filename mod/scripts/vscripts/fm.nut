@@ -1761,7 +1761,7 @@ bool function CommandFast(entity _player, array<string> _args) {
         StimPlayer(player, 9999)
     }
 
-    AnnounceMessage(AnnounceColor("*initial d - running in the 90s is playing*"))
+    AnnounceMessage(AnnounceColor("gotta go fast"))
     return true
 }
 

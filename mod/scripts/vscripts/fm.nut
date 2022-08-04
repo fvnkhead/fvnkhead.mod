@@ -24,7 +24,11 @@ struct CommandInfo {
     int flags
 }
 
+const int PS_MODIFIERS = 1 << 0
+const int PS_ALIVE     = 1 << 1
+
 enum PlayerSearchResultKind {
+    DEAD      = -3,
     NOT_FOUND = -2,
     MULTIPLE  = -1,
     SINGLE    =  0,
@@ -120,6 +124,10 @@ struct {
     int skipThreshold
     array<entity> skipVoters
 
+    bool rollEnabled
+    int rollLimit
+    table<string, int> rollCountTable
+
     bool rebalancedBuffsEnabled
     bool rebalancedNerfsEnabled
     bool rebalancedLatestEnabled
@@ -129,16 +137,12 @@ struct {
     array<string> mutedPlayers
 
     bool yellEnabled
-
     bool slayEnabled
-
     bool freezeEnabled
-
     bool stimEnabled
-
-    bool rollEnabled
-    int rollLimit
-    table<string, int> rollCountTable
+    bool salvoEnabled
+    bool tankEnabled
+    bool flyEnabled
 
     bool jokePitfallsEnabled
     table<string, int> pitfallTable
@@ -259,32 +263,28 @@ void function fm_Init() {
     file.skipPercentage = GetConVarFloat("fm_skip_percentage")
     file.skipVoters = []
 
+    // roll
+    file.rollEnabled = GetConVarBool("fm_roll_enabled")
+    file.rollLimit = GetConVarInt("fm_roll_limit")
+    file.rollCountTable = {}
+
     // rebalanced
     file.rebalancedBuffsEnabled = GetConVarBool("fm_rebalanced_buffs_enabled")
     file.rebalancedNerfsEnabled = GetConVarBool("fm_rebalanced_nerfs_enabled")
     file.rebalancedLatestEnabled = GetConVarBool("fm_rebalanced_latest_enabled")
 
-    // mute
+    // admin commands
     file.muteEnabled = GetConVarBool("fm_mute_enabled")
     file.muteSave = GetConVarBool("fm_mute_save")
     file.mutedPlayers = []
 
-    // yell
     file.yellEnabled = GetConVarBool("fm_yell_enabled")
-
-    // slay
     file.slayEnabled = GetConVarBool("fm_slay_enabled")
-
-    // freeze
     file.freezeEnabled = GetConVarBool("fm_freeze_enabled")
-
-    // stim
     file.stimEnabled = GetConVarBool("fm_stim_enabled")
-
-    // roll
-    file.rollEnabled = GetConVarBool("fm_roll_enabled")
-    file.rollLimit = GetConVarInt("fm_roll_limit")
-    file.rollCountTable = {}
+    file.salvoEnabled = GetConVarBool("fm_salvo_enabled")
+    file.tankEnabled = GetConVarBool("fm_tank_enabled")
+    file.flyEnabled = GetConVarBool("fm_fly_enabled")
 
     // jokes
     file.jokePitfallsEnabled = GetConVarBool("fm_joke_pitfalls_enabled")
@@ -461,6 +461,38 @@ void function fm_Init() {
         C_ADMIN
     )
 
+    CommandInfo cmdSalvo = NewCommandInfo(
+        ["!salvo"],
+        CommandSalvo,
+        1, 1,
+        "!salvo <player | all | us | them> => give flight core", "",
+        C_ADMIN
+    )
+
+    CommandInfo cmdTank = NewCommandInfo(
+        ["!tank"],
+        CommandTank,
+        1, 1,
+        "!tank <player | all | us | them> => make tanky", "",
+        C_ADMIN
+    )
+
+    CommandInfo cmdFly = NewCommandInfo(
+        ["!fly"],
+        CommandFly,
+        1, 1,
+        "!fly <player | all | us | them> => make floaty", "",
+        C_ADMIN
+    )
+
+    CommandInfo cmdUnfly = NewCommandInfo(
+        ["!unfly"],
+        CommandUnfly,
+        1, 1,
+        "!unfly <player | all | us | them> => make not floaty", "",
+        C_ADMIN
+    )
+
     // add commands and callbacks based on convars
     if (file.adminAuthEnabled) {
         file.commands.append(cmdAuth)
@@ -562,6 +594,19 @@ void function fm_Init() {
 
     if (file.stimEnabled) {
         file.commands.append(cmdStim)
+    }
+
+    if (file.salvoEnabled) {
+        file.commands.append(cmdSalvo)
+    }
+
+    if (file.tankEnabled) {
+        file.commands.append(cmdTank)
+    }
+
+    if (file.flyEnabled) {
+        file.commands.append(cmdFly)
+        file.commands.append(cmdUnfly)
     }
 
     if (file.rollEnabled) {
@@ -1727,17 +1772,9 @@ bool function CommandYell(entity player, array<string> args) {
 //------------------------------------------------------------------------------
 bool function CommandSlay(entity player, array<string> args) {
     string targetSearchName = args[0]
-    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, true)
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, PS_MODIFIERS | PS_ALIVE)
     if (result.kind < 0) {
         return false
-    }
-
-    if (result.kind == PlayerSearchResultKind.SINGLE) {
-        entity target = result.players[0]
-        if (!IsAlive(target)) {
-            SendMessage(player, ErrorColor(target.GetPlayerName() + " is already dead"))
-            return false
-        }
     }
 
     foreach (entity target in result.players) {
@@ -1757,17 +1794,9 @@ bool function CommandSlay(entity player, array<string> args) {
 //------------------------------------------------------------------------------
 bool function CommandFreeze(entity player, array<string> args) {
     string targetSearchName = args[0]
-    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, true)
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, PS_MODIFIERS | PS_ALIVE)
     if (result.kind < 0) {
         return false
-    }
-
-    if (result.kind == PlayerSearchResultKind.SINGLE) {
-        entity target = result.players[0]
-        if (!IsAlive(target)) {
-            SendMessage(player, ErrorColor(target.GetPlayerName() + " is dead"))
-            return false
-        }
     }
 
     foreach (entity target in result.players) {
@@ -1789,17 +1818,9 @@ bool function CommandFreeze(entity player, array<string> args) {
 //------------------------------------------------------------------------------
 bool function CommandStim(entity player, array<string> args) {
     string targetSearchName = args[0]
-    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, true)
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, PS_MODIFIERS | PS_ALIVE)
     if (result.kind < 0) {
         return false
-    }
-
-    if (result.kind == PlayerSearchResultKind.SINGLE) {
-        entity target = result.players[0]
-        if (!IsAlive(target)) {
-            SendMessage(player, ErrorColor(target.GetPlayerName() + " is dead"))
-            return false
-        }
     }
 
     foreach (entity target in result.players) {
@@ -1810,6 +1831,94 @@ bool function CommandStim(entity player, array<string> args) {
 
     string name = PlayerSearchResultName(player, result)
     AnnounceMessage(AnnounceColor(name + " is going fast"))
+    return true
+}
+
+//------------------------------------------------------------------------------
+// salvo
+//------------------------------------------------------------------------------
+bool function CommandSalvo(entity player, array<string> args) {
+    string targetSearchName = args[0]
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, PS_MODIFIERS | PS_ALIVE)
+    if (result.kind < 0) {
+        return false
+    }
+
+    foreach (entity target in result.players) {
+        if (!IsAlive(target)) {
+            continue
+        }
+
+        foreach (entity weapon in target.GetMainWeapons()) {
+            target.TakeWeaponNow(weapon.GetWeaponClassName())
+        }
+        target.GiveWeapon("mp_titanweapon_flightcore_rockets", [])
+    }
+
+    string name = PlayerSearchResultName(player, result)
+    AnnounceMessage(AnnounceColor(name + " has flight core"))
+    return true
+}
+
+//------------------------------------------------------------------------------
+// tank
+//------------------------------------------------------------------------------
+bool function CommandTank(entity player, array<string> args) {
+    string targetSearchName = args[0]
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, PS_MODIFIERS | PS_ALIVE)
+    if (result.kind < 0) {
+        return false
+    }
+
+    int health = 1000
+    foreach (entity target in result.players) {
+        if (IsAlive(target)) {
+            target.SetMaxHealth(health)
+            target.SetHealth(health)
+        }
+    }
+
+    string name = PlayerSearchResultName(player, result)
+    AnnounceMessage(AnnounceColor(name + " is tanky"))
+    return true
+}
+
+//------------------------------------------------------------------------------
+// fly
+//------------------------------------------------------------------------------
+bool function CommandFly(entity player, array<string> args) {
+    string targetSearchName = args[0]
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, PS_MODIFIERS | PS_ALIVE)
+    if (result.kind < 0) {
+        return false
+    }
+
+    foreach (entity target in result.players) {
+        if (IsAlive(target)) {
+            target.SetPhysics(MOVETYPE_NOCLIP)
+        }
+    }
+
+    string name = PlayerSearchResultName(player, result)
+    AnnounceMessage(AnnounceColor(name + " is flying"))
+    return true
+}
+
+bool function CommandUnfly(entity player, array<string> args) {
+    string targetSearchName = args[0]
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, PS_MODIFIERS | PS_ALIVE)
+    if (result.kind < 0) {
+        return false
+    }
+
+    foreach (entity target in result.players) {
+        if (IsAlive(target)) {
+            target.SetPhysics(MOVETYPE_WALK)
+        }
+    }
+
+    string name = PlayerSearchResultName(player, result)
+    AnnounceMessage(AnnounceColor(name + " is no longer flying"))
     return true
 }
 
@@ -1967,13 +2076,13 @@ void function JokeKills_OnPlayerKilled(entity victim, entity attacker, var damag
 PlayerSearchResult function RunPlayerSearch(
     entity commandUser,
     string playerName,
-    bool modifiers = false
+    int flags = 0x0
 ) {
     PlayerSearchResult result
     result.kind = PlayerSearchResultKind.NOT_FOUND
     result.players = []
 
-    if (modifiers) {
+    if ((flags & PS_MODIFIERS) > 0) {
         switch (playerName.tolower()) {
             case "all":
                 result.kind = PlayerSearchResultKind.ALL
@@ -2011,6 +2120,15 @@ PlayerSearchResult function RunPlayerSearch(
         SendMessage(commandUser, ErrorColor("multiple matches for player '" + playerName + "', be more specific"))
         result.kind = PlayerSearchResultKind.MULTIPLE
         return result
+    }
+
+    if ((flags & PS_ALIVE) > 0) {
+        entity target = result.players[0]
+        if (!IsAlive(target)) {
+            SendMessage(commandUser, ErrorColor(target.GetPlayerName() + " is dead"))
+            result.kind = PlayerSearchResultKind.DEAD
+            return result
+        }
     }
 
     result.kind = PlayerSearchResultKind.SINGLE

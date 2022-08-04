@@ -168,6 +168,15 @@
         },
 
         {
+            "Name": "fm_roll_enabled",
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_roll_limit",
+            "DefaultValue": "5"
+        },
+
+        {
             "Name": "fm_rebalanced_buffs_enabled",
             "DefaultValue": "0"
         },
@@ -211,13 +220,20 @@
         },
 
         {
-            "Name": "fm_roll_enabled",
+            "Name": "fm_salvo_enabled",
             "DefaultValue": "1"
         },
+
         {
-            "Name": "fm_roll_limit",
-            "DefaultValue": "5"
+            "Name": "fm_tank_enabled",
+            "DefaultValue": "1"
         },
+
+        {
+            "Name": "fm_fly_enabled",
+            "DefaultValue": "1"
+        },
+
 
         // jokes
         {

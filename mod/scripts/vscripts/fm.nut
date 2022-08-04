@@ -918,7 +918,7 @@ bool function CommandHelp(entity player, array<string> args) {
 
         string displayName = possibleAdmin.GetPlayerName()
         if (IsNonAuthenticatedAdmin(possibleAdmin)) {
-            displayName += ErrorColor("(?)")
+            displayName += "(?)"
         }
 
         onlineAdminNames.append(displayName)
@@ -2091,7 +2091,9 @@ PlayerSearchResult function RunPlayerSearch(
 
             case "us":
                 if (IsFFAGame()) {
-                    break
+                    result.kind = PlayerSearchResultKind.ALL
+                    result.players = GetPlayerArray()
+                    return result
                 }
                 result.kind = PlayerSearchResultKind.US
                 result.players = GetPlayerArrayOfTeam(commandUser.GetTeam())
@@ -2099,7 +2101,9 @@ PlayerSearchResult function RunPlayerSearch(
 
             case "them":
                 if (IsFFAGame()) {
-                    break
+                    result.kind = PlayerSearchResultKind.ALL
+                    result.players = GetPlayerArray()
+                    return result
                 }
                 result.kind = PlayerSearchResultKind.THEM
                 result.players = GetPlayerArrayOfTeam(GetOtherTeam(commandUser.GetTeam()))
@@ -2136,17 +2140,27 @@ PlayerSearchResult function RunPlayerSearch(
 }
 
 string function PlayerSearchResultName(entity commandUser, PlayerSearchResult result) {
-    int usTeam = commandUser.GetTeam()
-    int themTeam = GetOtherTeam(usTeam)
     switch (result.kind) {
         case PlayerSearchResultKind.SINGLE:
             return result.players[0].GetPlayerName()
+
         case PlayerSearchResultKind.ALL:
             return "everyone"
+
         case PlayerSearchResultKind.US:
+            if (IsFFAGame()) {
+                return "everyone"
+            }
+            int usTeam = commandUser.GetTeam()
             return "team " + GetTeamName(usTeam).tolower()
+
         case PlayerSearchResultKind.THEM:
+            if (IsFFAGame()) {
+                return "everyone"
+            }
+            int themTeam = GetOtherTeam(commandUser.GetTeam())
             return "team " + GetTeamName(themTeam).tolower()
+
         default:
             break
     }

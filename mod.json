@@ -206,7 +206,7 @@
         },
 
         {
-            "Name": "fm_fast_enabled",
+            "Name": "fm_stim_enabled",
             "DefaultValue": "1"
         },
 

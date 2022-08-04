@@ -24,6 +24,20 @@ struct CommandInfo {
     int flags
 }
 
+enum PlayerSearchResultKind {
+    NOT_FOUND = -2,
+    MULTIPLE  = -1,
+    SINGLE    =  0,
+    ALL       =  1,
+    US        =  2,
+    THEM      =  3
+}
+
+struct PlayerSearchResult {
+    int kind
+    array<entity> players
+}
+
 struct KickInfo {
     array<entity> voters
     int threshold
@@ -120,7 +134,7 @@ struct {
 
     bool freezeEnabled
 
-    bool fastEnabled
+    bool stimEnabled
 
     bool rollEnabled
     int rollLimit
@@ -264,8 +278,8 @@ void function fm_Init() {
     // freeze
     file.freezeEnabled = GetConVarBool("fm_freeze_enabled")
 
-    // fast
-    file.fastEnabled = GetConVarBool("fm_fast_enabled")
+    // stim
+    file.stimEnabled = GetConVarBool("fm_stim_enabled")
 
     // roll
     file.rollEnabled = GetConVarBool("fm_roll_enabled")
@@ -427,7 +441,7 @@ void function fm_Init() {
         ["!slay"],
         CommandSlay,
         1, 1,
-        "!slay <full or partial player name> => kill a player", "",
+        "!slay <player | all | us | them> => slay players", "",
         C_ADMIN
     )
 
@@ -435,15 +449,15 @@ void function fm_Init() {
         ["!freeze"],
         CommandFreeze,
         1, 1,
-        "!freeze <full or partial player name> => freeze a player", "",
+        "!freeze <player | all | us | them> => freeze players", "",
         C_ADMIN
     )
 
-    CommandInfo cmdFast = NewCommandInfo(
-        ["!fast"],
-        CommandFast,
-        0, 0,
-        "!fast => everyone goes fast", "",
+    CommandInfo cmdStim = NewCommandInfo(
+        ["!stim"],
+        CommandStim,
+        1, 1,
+        "!stim <player | all | us | them> => give stim", "",
         C_ADMIN
     )
 
@@ -546,8 +560,8 @@ void function fm_Init() {
         file.commands.append(cmdFreeze)
     }
 
-    if (file.fastEnabled) {
-        file.commands.append(cmdFast)
+    if (file.stimEnabled) {
+        file.commands.append(cmdStim)
     }
 
     if (file.rollEnabled) {
@@ -910,11 +924,12 @@ bool function CommandAuth(entity player, array<string> args) {
 //------------------------------------------------------------------------------
 bool function CommandKick(entity player, array<string> args) {
     string targetSearchName = args[0]
-    entity target = PlayerSearchStart(player, targetSearchName)
-    if (target == null) {
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName)
+    if (result.kind < 0) {
         return false
     }
 
+    entity target = result.players[0]
     string targetUid = target.GetUID()
     string targetName = target.GetPlayerName()
 
@@ -1243,10 +1258,11 @@ bool function CommandSwitch(entity player, array<string> args) {
     bool isAdminSwitch = args.len() == 1
     if (isAdminSwitch) {
         string targetSearchName = args[0]
-        target = PlayerSearchStart(player, targetSearchName)
-        if (target == null) {
+        PlayerSearchResult result = RunPlayerSearch(player, targetSearchName)
+        if (result.kind < 0) {
             return false
         }
+        target = result.players[0]
     }
 
     string targetName = target.GetPlayerName()
@@ -1649,11 +1665,12 @@ string function FormatRebalancedEntry(RebalancedEntry entry) {
 //------------------------------------------------------------------------------
 bool function CommandMute(entity player, array<string> args) {
     string targetSearchName = args[0]
-    entity target = PlayerSearchStart(player, targetSearchName)
-    if (target == null) {
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName)
+    if (result.kind < 0) {
         return false
     }
 
+    entity target = result.players[0]
     string targetName = target.GetPlayerName()
     string targetUid = target.GetUID()
 
@@ -1670,11 +1687,12 @@ bool function CommandMute(entity player, array<string> args) {
 
 bool function CommandUnmute(entity player, array<string> args) {
     string targetSearchName = args[0]
-    entity target = PlayerSearchStart(player, targetSearchName)
-    if (target == null) {
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName)
+    if (result.kind < 0) {
         return false
     }
 
+    entity target = result.players[0]
     string targetName = target.GetPlayerName()
     string targetUid = target.GetUID()
     if (!file.mutedPlayers.contains(targetUid)) {
@@ -1709,18 +1727,27 @@ bool function CommandYell(entity player, array<string> args) {
 //------------------------------------------------------------------------------
 bool function CommandSlay(entity player, array<string> args) {
     string targetSearchName = args[0]
-    entity target = PlayerSearchStart(player, targetSearchName)
-    if (target == null) {
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, true)
+    if (result.kind < 0) {
         return false
     }
 
-    if (!IsAlive(target)) {
-        SendMessage(player, ErrorColor(target.GetPlayerName() + " is already dead"))
-        return false
+    if (result.kind == PlayerSearchResultKind.SINGLE) {
+        entity target = result.players[0]
+        if (!IsAlive(target)) {
+            SendMessage(player, ErrorColor(target.GetPlayerName() + " is already dead"))
+            return false
+        }
     }
 
-    target.Die()
-    AnnounceMessage(AnnounceColor(target.GetPlayerName() + " has been slain"))
+    foreach (entity target in result.players) {
+        if (IsAlive(target)) {
+            target.Die()
+        }
+    }
+
+    string name = PlayerSearchResultName(player, result)
+    AnnounceMessage(AnnounceColor(name + " has been slain"))
 
     return true
 }
@@ -1730,38 +1757,59 @@ bool function CommandSlay(entity player, array<string> args) {
 //------------------------------------------------------------------------------
 bool function CommandFreeze(entity player, array<string> args) {
     string targetSearchName = args[0]
-    entity target = PlayerSearchStart(player, targetSearchName)
-    if (target == null) {
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, true)
+    if (result.kind < 0) {
         return false
     }
 
-    if (!IsAlive(target)) {
-        SendMessage(player, ErrorColor(target.GetPlayerName() + " is dead"))
-        return false
+    if (result.kind == PlayerSearchResultKind.SINGLE) {
+        entity target = result.players[0]
+        if (!IsAlive(target)) {
+            SendMessage(player, ErrorColor(target.GetPlayerName() + " is dead"))
+            return false
+        }
     }
 
-    target.MovementDisable()
-    target.ConsumeDoubleJump()
-    target.DisableWeaponViewModel()
+    foreach (entity target in result.players) {
+        if (IsAlive(target)) {
+            target.MovementDisable()
+            target.ConsumeDoubleJump()
+            target.DisableWeaponViewModel()
+        }
+    }
 
-    AnnounceMessage(AnnounceColor(target.GetPlayerName() + " has been frozen"))
+    string name = PlayerSearchResultName(player, result)
+    AnnounceMessage(AnnounceColor(name + " has been frozen"))
 
     return true
 }
 
 //------------------------------------------------------------------------------
-// fast
+// stim
 //------------------------------------------------------------------------------
-bool function CommandFast(entity _player, array<string> _args) {
-    foreach (player in GetPlayerArray()) {
-        if (!IsAlive(player)) {
-            continue
-        }
-
-        StimPlayer(player, 9999)
+bool function CommandStim(entity player, array<string> args) {
+    string targetSearchName = args[0]
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, true)
+    if (result.kind < 0) {
+        return false
     }
 
-    AnnounceMessage(AnnounceColor("gotta go fast"))
+    if (result.kind == PlayerSearchResultKind.SINGLE) {
+        entity target = result.players[0]
+        if (!IsAlive(target)) {
+            SendMessage(player, ErrorColor(target.GetPlayerName() + " is dead"))
+            return false
+        }
+    }
+
+    foreach (entity target in result.players) {
+        if (IsAlive(target)) {
+            StimPlayer(target, 9999)
+        }
+    }
+
+    string name = PlayerSearchResultName(player, result)
+    AnnounceMessage(AnnounceColor(name + " is going fast"))
     return true
 }
 
@@ -1916,19 +1964,75 @@ void function JokeKills_OnPlayerKilled(entity victim, entity attacker, var damag
 // utils
 //------------------------------------------------------------------------------
 
-entity function PlayerSearchStart(entity commandUser, string playerName) {
-    array<entity> foundPlayers = FindPlayersBySubstring(playerName)
-    if (foundPlayers.len() == 0) {
+PlayerSearchResult function RunPlayerSearch(
+    entity commandUser,
+    string playerName,
+    bool modifiers = false
+) {
+    PlayerSearchResult result
+    result.kind = PlayerSearchResultKind.NOT_FOUND
+    result.players = []
+
+    if (modifiers) {
+        switch (playerName.tolower()) {
+            case "all":
+                result.kind = PlayerSearchResultKind.ALL
+                result.players = GetPlayerArray()
+                return result
+
+            case "us":
+                if (IsFFAGame()) {
+                    break
+                }
+                result.kind = PlayerSearchResultKind.US
+                result.players = GetPlayerArrayOfTeam(commandUser.GetTeam())
+                return result
+
+            case "them":
+                if (IsFFAGame()) {
+                    break
+                }
+                result.kind = PlayerSearchResultKind.THEM
+                result.players = GetPlayerArrayOfTeam(GetOtherTeam(commandUser.GetTeam()))
+                return result
+            default:
+                break
+        }
+    }
+
+    result.players = FindPlayersBySubstring(playerName)
+    if (result.players.len() == 0) {
         SendMessage(commandUser, ErrorColor("player '" + playerName + "' not found"))
-        return null
+        result.kind = PlayerSearchResultKind.NOT_FOUND
+        return result
     }
 
-    if (foundPlayers.len() > 1) {
+    if (result.players.len() > 1) {
         SendMessage(commandUser, ErrorColor("multiple matches for player '" + playerName + "', be more specific"))
-        return null
+        result.kind = PlayerSearchResultKind.MULTIPLE
+        return result
     }
 
-    return foundPlayers[0]
+    result.kind = PlayerSearchResultKind.SINGLE
+    return result
+}
+
+string function PlayerSearchResultName(entity commandUser, PlayerSearchResult result) {
+    int usTeam = commandUser.GetTeam()
+    int themTeam = GetOtherTeam(usTeam)
+    switch (result.kind) {
+        case PlayerSearchResultKind.SINGLE:
+            return result.players[0].GetPlayerName()
+        case PlayerSearchResultKind.ALL:
+            return "everyone"
+        case PlayerSearchResultKind.US:
+            return "team " + GetTeamName(usTeam).tolower()
+        case PlayerSearchResultKind.THEM:
+            return "team " + GetTeamName(themTeam).tolower()
+        default:
+            break
+    }
+    return ErrorColor("??? fvnhead pls fix ???")
 }
 
 void function Log(string s) {

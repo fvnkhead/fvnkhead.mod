@@ -39,7 +39,7 @@
         },
         {
             "Name": "fm_welcome_notes",
-            "DefaultValue": "testing new network configuration on servers, expect lag/ping issues|chat commands sometimes don't work when you're dead"
+            "DefaultValue": "chat commands sometimes don't work when you're dead|testing spectator mod, type 'spec playername' in console"
         },
 
         {

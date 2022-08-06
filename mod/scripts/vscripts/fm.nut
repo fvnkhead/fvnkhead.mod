@@ -1281,7 +1281,7 @@ void function NextMapHint_OnPlayerRespawned(entity player) {
     }
 
     float endTime = expect float(GetServerVar("gameEndTime"))
-    if (GameRules_GetGameMode() == CAPTURE_THE_FLAG) {
+    if (IsCTF()) {
         endTime = expect float(GetServerVar("roundEndTime"))
     }
     if (Time() < endTime / 2.0) {
@@ -1444,7 +1444,7 @@ array<PlayerScore> function GetPlayerScores(array<entity> players) {
 }
 
 float function CalculatePlayerScore(entity player) {
-    if (GameRules_GetGameMode() == CAPTURE_THE_FLAG) {
+    if (IsCTF()) {
         return CalculateCTFScore(player)
     }
 
@@ -1639,8 +1639,21 @@ void function SkipAnnounceLoop(float waitTime) {
     int seconds = int(waitTime)
     AnnounceMessage(AnnounceColor("current map will be skipped in " + seconds + "..."))
     for (int i = seconds - 1; i > 0; i--) {
+        // ctf fix, skip crashes if player has flag
+        if (IsCTF() && i <= 3) {
+            KillAll()
+        }
+
         wait 1.0
         AnnounceMessage(AnnounceColor(i + "..."))
+    }
+}
+
+void function KillAll() {
+    foreach (entity player in GetPlayerArray()) {
+        if (IsAlive(player)) {
+            player.Die()
+        }
     }
 }
 
@@ -2317,6 +2330,10 @@ bool function HasFlag(entity player) {
         }
     }
     return false
+}
+
+bool function IsCTF() {
+    return GameRules_GetGameMode() == CAPTURE_THE_FLAG
 }
 
 array<entity> function GetChildren(entity parentEnt) {

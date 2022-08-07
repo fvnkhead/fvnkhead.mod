@@ -241,7 +241,7 @@
         },
         {
             "Name": "fm_killstreak_increment",
-            "DefaultValue": "2"
+            "DefaultValue": "10"
         },
 
         // jokes

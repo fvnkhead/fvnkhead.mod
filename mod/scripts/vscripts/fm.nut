@@ -112,6 +112,7 @@ struct {
 
     bool autobalanceEnabled
     int autobalanceDiff
+    array<entity> autobalancePlayerQueue
 
     bool extendEnabled
     float extendPercentage
@@ -250,6 +251,7 @@ void function fm_Init() {
     // autobalance
     file.autobalanceEnabled = GetConVarBool("fm_autobalance_enabled")
     file.autobalanceDiff = GetConVarInt("fm_autobalance_diff")
+    file.autobalancePlayerQueue = []
 
     // extend
     file.extendEnabled = GetConVarBool("fm_extend_enabled")
@@ -548,6 +550,8 @@ void function fm_Init() {
 
     if (file.autobalanceEnabled && !IsFFAGame()) {
         AddCallback_GameStateEnter(eGameState.Playing, Autobalance_Start)
+        AddCallback_OnClientConnected(Autobalance_OnClientConnected)
+        AddCallback_OnClientDisconnected(Autobalance_OnClientDisconnected)
     }
 
     if (file.extendEnabled) {
@@ -1494,7 +1498,7 @@ void function Balance_OnClientDisconnected(entity player) {
 //------------------------------------------------------------------------------
 // autobalance
 //------------------------------------------------------------------------------
-float AUTOBALANCE_INTERVAL = 5.0
+float AUTOBALANCE_INTERVAL = 10
 
 void function Autobalance_Start() {
     Log("starting autobalance loop")
@@ -1532,23 +1536,50 @@ void function Autobalance_Check() {
 }
 
 void function DoAutobalance(int fromTeam) {
-    array<entity> fromPlayers = GetPlayerArrayOfTeam(fromTeam)
-    array<entity> switchablePlayers = []
-    foreach (entity player in fromPlayers) {
-        if (CanSwitchTeams(player)) {
-            switchablePlayers.append(player)
+    array<entity> prio2 = []
+    foreach (entity player in file.autobalancePlayerQueue) {
+        if (player.GetTeam() == fromTeam && CanSwitchTeams(player)) {
+            prio2.append(player)
         }
     }
 
-    if (switchablePlayers.len() == 0) {
+    if (prio2.len() == 0) {
         return
     }
 
-    entity player = switchablePlayers[RandomInt(switchablePlayers.len())]
-    int toTeam = GetOtherTeam(fromTeam) 
-    SetTeam(player, toTeam)
+    entity playerToSwitch = prio2[0]
 
-    SendMessage(player, PrivateColor("you got autobalanced"))
+    array<entity> prio1 = []
+    foreach (entity player in prio2) {
+        // prefer not to switch players who have manually switched
+        if (!(player.GetUID() in file.switchCountTable)) {
+            prio1.append(player)
+        }
+    }
+
+    if (prio1.len() > 0) {
+        playerToSwitch = prio1[0]
+    }
+
+    int toTeam = GetOtherTeam(fromTeam) 
+    SetTeam(playerToSwitch, toTeam)
+
+    SendMessage(playerToSwitch, PrivateColor("you got autobalanced"))
+}
+
+void function Autobalance_OnClientConnected(entity player) {
+    if (file.autobalancePlayerQueue.contains(player)) {
+        return
+    }
+
+    // most recently joined players first in queue
+    file.autobalancePlayerQueue.insert(0, player)
+}
+
+void function Autobalance_OnClientDisconnected(entity player) {
+    if (file.autobalancePlayerQueue.contains(player)) {
+        file.autobalancePlayerQueue.remove(file.autobalancePlayerQueue.find(player))
+    }
 }
 
 //------------------------------------------------------------------------------

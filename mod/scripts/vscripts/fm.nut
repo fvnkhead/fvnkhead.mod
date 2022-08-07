@@ -1333,7 +1333,7 @@ bool function CommandSwitch(entity player, array<string> args) {
     }
 
     // ctf
-    if (!file.switchKill && HasFlag(target)) {
+    if (!file.switchKill && PlayerHasEnemyFlag(target)) {
         SendMessage(player, ErrorColor(flagMsg))
         return false
     }
@@ -2315,34 +2315,13 @@ array<string> function FindMapsBySubstring(string substring) {
 
 bool function CanSwitchTeams(entity player) {
     // ctf bug, flag can become other team flag so they have 2 flags
-    if (HasFlag(player)) {
+    if (PlayerHasEnemyFlag(player)) {
         return false
     }
 
     return true
 }
 
-bool function HasFlag(entity player) {
-    array<entity> children = GetChildren(player)
-    foreach (entity childEnt in children) {
-        if (childEnt.GetClassName() == "item_flag") {
-            return true
-        }
-    }
-    return false
-}
-
 bool function IsCTF() {
     return GameRules_GetGameMode() == CAPTURE_THE_FLAG
-}
-
-array<entity> function GetChildren(entity parentEnt) {
-    entity childEnt = parentEnt.FirstMoveChild()
-    array<entity> children = []
-    while (childEnt != null) {
-        children.append(childEnt)
-        childEnt = childEnt.NextMovePeer()
-    }
-
-    return children
 }

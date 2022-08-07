@@ -137,6 +137,10 @@ struct {
     bool muteSave
     array<string> mutedPlayers
 
+    bool killstreakEnabled
+    int killstreakIncrement
+    table<string, int> playerKillstreaks
+
     bool yellEnabled
     bool slayEnabled
     bool freezeEnabled
@@ -287,6 +291,11 @@ void function fm_Init() {
     file.salvoEnabled = GetConVarBool("fm_salvo_enabled")
     file.tankEnabled = GetConVarBool("fm_tank_enabled")
     file.flyEnabled = GetConVarBool("fm_fly_enabled")
+
+    // player experience
+    file.killstreakEnabled = GetConVarBool("fm_killstreak_enabled")
+    file.killstreakIncrement = GetConVarInt("fm_killstreak_increment")
+    file.playerKillstreaks = {}
 
     // jokes
     file.jokePitfallsEnabled = GetConVarBool("fm_joke_pitfalls_enabled")
@@ -615,6 +624,10 @@ void function fm_Init() {
 
     if (file.rollEnabled) {
         file.commands.append(cmdRoll)
+    }
+
+    if (file.killstreakEnabled) {
+        AddCallback_OnPlayerKilled(Killstreak_OnPlayerKilled)
     }
 
     if (file.jokePitfallsEnabled) {
@@ -2006,6 +2019,52 @@ bool function CommandRoll(entity player, array<string> args) {
 
     AnnounceMessage(AnnounceColor(msg))
     return true
+}
+
+//------------------------------------------------------------------------------
+// killstreak
+//------------------------------------------------------------------------------
+void function Killstreak_OnPlayerKilled(entity victim, entity attacker, var damageInfo) {
+    if (!victim.IsPlayer() || !attacker.IsPlayer() || GetGameState() != eGameState.Playing) {
+        return
+    }
+
+    string victimName = victim.GetPlayerName()
+    string attackerName = attacker.GetPlayerName()
+
+    int victimKillstreak = GetKillstreak(victim)
+    int attackerKillstreak = GetKillstreak(attacker)
+    if (victimKillstreak >= file.killstreakIncrement) {
+        string msg = ErrorColor(attackerName)
+        msg += AnnounceColor(" ended ")
+        msg += ErrorColor(victimName + "'s")
+        msg += AnnounceColor(" " + victimKillstreak + "-kill streak")
+        AnnounceMessage(msg)
+    }
+
+    SetKillstreak(victim, 0)
+    if (attacker == victim) {
+        return
+    }
+
+    attackerKillstreak += 1
+    if (attackerKillstreak % file.killstreakIncrement == 0) {
+        string msg = ErrorColor(attackerName)
+        msg += AnnounceColor(" is on a " + attackerKillstreak + "-kill streak")
+        AnnounceMessage(msg)
+    }
+
+    SetKillstreak(attacker, attackerKillstreak)
+}
+
+int function GetKillstreak(entity player) {
+    string uid = player.GetUID()
+    return uid in file.playerKillstreaks ? file.playerKillstreaks[uid] : 0
+}
+
+void function SetKillstreak(entity player, int killstreak) {
+    string uid = player.GetUID()
+    file.playerKillstreaks[uid] <- killstreak
 }
 
 //------------------------------------------------------------------------------

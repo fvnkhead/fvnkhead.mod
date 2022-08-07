@@ -173,7 +173,7 @@
         },
         {
             "Name": "fm_roll_limit",
-            "DefaultValue": "5"
+            "DefaultValue": "3"
         },
 
         {
@@ -234,6 +234,15 @@
             "DefaultValue": "1"
         },
 
+        // player experience
+        {
+            "Name": "fm_killstreak_enabled",
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_killstreak_increment",
+            "DefaultValue": "2"
+        },
 
         // jokes
         {

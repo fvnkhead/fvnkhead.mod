@@ -148,6 +148,7 @@ struct {
     bool salvoEnabled
     bool tankEnabled
     bool flyEnabled
+    bool mrvnEnabled
 
     bool jokePitfallsEnabled
     table<string, int> pitfallTable
@@ -291,6 +292,7 @@ void function fm_Init() {
     file.salvoEnabled = GetConVarBool("fm_salvo_enabled")
     file.tankEnabled = GetConVarBool("fm_tank_enabled")
     file.flyEnabled = GetConVarBool("fm_fly_enabled")
+    file.mrvnEnabled = GetConVarBool("fm_mrvn_enabled")
 
     // player experience
     file.killstreakEnabled = GetConVarBool("fm_killstreak_enabled")
@@ -504,6 +506,14 @@ void function fm_Init() {
         C_ADMIN
     )
 
+    CommandInfo cmdMrvn = NewCommandInfo(
+        ["!mrvn"],
+        CommandMrvn,
+        0, 0,
+        "!mrvn => spawn a marvin", "",
+        C_ADMIN
+    )
+
     // add commands and callbacks based on convars
     if (file.adminAuthEnabled) {
         file.commands.append(cmdAuth)
@@ -620,6 +630,10 @@ void function fm_Init() {
     if (file.flyEnabled) {
         file.commands.append(cmdFly)
         file.commands.append(cmdUnfly)
+    }
+
+    if (file.mrvnEnabled) {
+        file.commands.append(cmdMrvn)
     }
 
     if (file.rollEnabled) {
@@ -1976,6 +1990,23 @@ bool function CommandUnfly(entity player, array<string> args) {
 
     string name = PlayerSearchResultName(player, result)
     AnnounceMessage(AnnounceColor(name + " is no longer flying"))
+    return true
+}
+
+//------------------------------------------------------------------------------
+// mrvn
+//------------------------------------------------------------------------------
+
+bool function CommandMrvn(entity player, array<string> args) {
+    int health = 1000
+    entity marvin = CreateMarvin(TEAM_UNASSIGNED, player.GetOrigin(), player.GetAngles())
+    marvin.kv.health = health
+    marvin.kv.max_health = health
+    DispatchSpawn(marvin)
+    HideName(marvin)
+
+    thread MarvinJobThink(marvin)
+
     return true
 }
 

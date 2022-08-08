@@ -234,6 +234,11 @@
             "DefaultValue": "1"
         },
 
+        {
+            "Name": "fm_mrvn_enabled",
+            "DefaultValue": "1"
+        },
+
         // player experience
         {
             "Name": "fm_killstreak_enabled",

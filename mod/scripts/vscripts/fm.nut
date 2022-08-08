@@ -839,6 +839,10 @@ ClServer_MessageStruct function CheckSpam(ClServer_MessageStruct messageInfo) {
     }
 
     entity player = messageInfo.player
+    if (IsAuthenticatedAdmin(player)) {
+        return messageInfo
+    }
+
     float latestTime = Time()
     array<float> messageTimes = [latestTime]
     if (player in file.playerMessageTimes) {

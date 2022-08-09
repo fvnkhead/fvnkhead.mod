@@ -11,6 +11,7 @@ global array<RebalancedEntry> LATEST_LIST = []
 
 void function fm_RebalancedInit() {
     Buff("smr",           "explosion dmg 15 => 20")
+    Buff("softball",        "explosion dmg 90 => 100")
     Buff("b3 wingman",    "fire rate 2.6 => 3.7")
     Buff("arc grenade",   "explodes on impact")
     Buff("smoke grenade",   "increased damage")
@@ -22,9 +23,9 @@ void function fm_RebalancedInit() {
 
     Nerf("melee",         "dmg 100 => 60")
     Nerf("car",           "dmg 25 => 15")
-    Nerf("r97",           "dmg 20 => 14")
-    Nerf("alternator",    "dmg 35 => 25")
-    Nerf("volt",          "dmg 25 => 18")
+    Nerf("r97",           "dmg 20 => 13")
+    Nerf("alternator",    "dmg 35 => 22")
+    Nerf("volt",          "dmg 25 => 20")
     Nerf("r201 & r101",   "dmg 25 => 18")
     Nerf("flatline",      "dmg 30 => 20")
     Nerf("g2",            "more falloff")
@@ -38,11 +39,12 @@ void function fm_RebalancedInit() {
     Nerf("re45",          "dmg 20 => 12")
     Nerf("gravstar",      "25% slower recharge")
 
-    Latest("pulse blade", "3x faster recharge, 2x shorter sonar")
+    Latest("volt", "+2 dmg")
+    Latest("r97", "-1 dmg")
     Latest("smoke grenade", "increased damage")
-    Latest("alternator", "+3 dmg")
-    Latest("dmr", "removed dmg nerf, increased falloff")
+    Latest("alternator", "-3 dmg")
     Latest("eva8", "improved dmg calculation")
+    Latest("softball", "explosion dmg 90 => 100")
 }
 
 void function Buff(string name, string desc) {

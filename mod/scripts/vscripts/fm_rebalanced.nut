@@ -20,6 +20,7 @@ void function fm_RebalancedInit() {
     Buff("thunderbolt",   "direct hit dmg 70 => 100")
     Buff("archer", "dumbfire enabled, splash reduced")
     Buff("mgl", "explosion damage 35 => 60")
+    Buff("silencers", "don't break cloak")
 
     Nerf("melee",         "dmg 100 => 60")
     Nerf("car",           "dmg 25 => 15")
@@ -45,6 +46,7 @@ void function fm_RebalancedInit() {
     Latest("alternator", "-3 dmg")
     Latest("eva8", "improved dmg calculation")
     Latest("softball", "explosion dmg 90 => 100")
+    Latest("silencers", "don't break cloak")
 }
 
 void function Buff(string name, string desc) {

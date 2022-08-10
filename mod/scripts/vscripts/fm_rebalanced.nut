@@ -17,7 +17,7 @@ void function fm_RebalancedInit() {
     Buff("smoke grenade",   "increased damage")
     Buff("satchel",   "pilot damage 125 => 140")
     Buff("pulse blade",   "3x faster recharge, 2x shorter sonar")
-    Buff("thunderbolt",   "direct hit dmg 70 => 100")
+    Buff("thunderbolt",   "increased damage to pilots")
     Buff("archer", "dumbfire enabled, splash reduced")
     Buff("mgl", "explosion damage 35 => 60")
     Buff("silencers", "don't break cloak")
@@ -47,6 +47,7 @@ void function fm_RebalancedInit() {
     Latest("eva8", "improved dmg calculation")
     Latest("softball", "explosion dmg 90 => 100")
     Latest("silencers", "don't break cloak")
+    Latest("thunderbolt",   "increased damage to pilots")
 }
 
 void function Buff(string name, string desc) {

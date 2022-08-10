@@ -21,6 +21,7 @@ void function fm_RebalancedInit() {
     Buff("archer", "dumbfire enabled, splash reduced")
     Buff("mgl", "explosion damage 35 => 60")
     Buff("silencers", "don't break cloak")
+    Buff("tactikill", "25% => 40%")
 
     Nerf("melee",         "dmg 100 => 60")
     Nerf("car",           "dmg 25 => 15")
@@ -39,7 +40,9 @@ void function fm_RebalancedInit() {
     Nerf("p2016",         "dmg 30 => 20")
     Nerf("re45",          "dmg 20 => 12")
     Nerf("gravstar",      "25% slower recharge")
+    Nerf("stim & phase",  "25% slower recharge")
 
+    Latest("stim & phase",  "25% slower recharge")
     Latest("volt", "+2 dmg")
     Latest("r97", "-1 dmg")
     Latest("smoke grenade", "increased damage")
@@ -47,6 +50,7 @@ void function fm_RebalancedInit() {
     Latest("eva8", "improved dmg calculation")
     Latest("softball", "explosion dmg 90 => 100")
     Latest("silencers", "don't break cloak")
+    Latest("tactikill", "25% => 40%")
     Latest("thunderbolt",   "increased damage to pilots")
 }
 

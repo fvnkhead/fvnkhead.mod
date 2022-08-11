@@ -14,12 +14,12 @@ void function fm_RebalancedInit() {
     Buff("softball",        "explosion dmg 90 => 100")
     Buff("b3 wingman",    "fire rate 2.6 => 3.7")
     Buff("arc grenade",   "explodes on impact")
-    Buff("smoke grenade",   "increased damage")
-    Buff("satchel",   "pilot damage 125 => 140")
+    Buff("smoke grenade",   "increased dmg")
+    Buff("satchel",   "pilot dmg 125 => 140")
     Buff("pulse blade",   "3x faster recharge, 2x shorter sonar")
-    Buff("thunderbolt",   "increased damage to pilots")
+    Buff("thunderbolt",   "increased dmg to pilots")
     Buff("archer", "dumbfire enabled, splash reduced")
-    Buff("mgl", "explosion damage 35 => 60")
+    Buff("mgl", "explosion dmg 35 => 60")
     Buff("silencers", "don't break cloak")
     Buff("tactikill", "25% => 40%")
 
@@ -45,13 +45,13 @@ void function fm_RebalancedInit() {
     Latest("stim & phase",  "25% slower recharge")
     Latest("volt", "+2 dmg")
     Latest("r97", "-1 dmg")
-    Latest("smoke grenade", "increased damage")
+    Latest("smoke grenade", "increased dmg")
     Latest("alternator", "-3 dmg")
     Latest("eva8", "improved dmg calculation")
     Latest("softball", "explosion dmg 90 => 100")
     Latest("silencers", "don't break cloak")
     Latest("tactikill", "25% => 40%")
-    Latest("thunderbolt",   "increased damage to pilots")
+    Latest("thunderbolt",   "increased dmg to pilots")
 }
 
 void function Buff(string name, string desc) {

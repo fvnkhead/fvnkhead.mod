@@ -27,7 +27,7 @@ void function fm_RebalancedInit() {
     Nerf("car",             "dmg 25 => 15")
     Nerf("r97",             "dmg 20 => 13")
     Nerf("alternator",      "dmg 35 => 22")
-    Nerf("volt",            "dmg 25 => 20")
+    Nerf("volt",            "dmg 25 => 18")
     Nerf("r201 & r101",     "dmg 25 => 18")
     Nerf("flatline",        "dmg 30 => 20")
     Nerf("g2",              "more falloff")
@@ -44,7 +44,6 @@ void function fm_RebalancedInit() {
     Nerf("stim & phase",    "25% slower recharge")
 
     Latest("stim & phase",  "25% slower recharge")
-    Latest("volt",          "+2 dmg")
     Latest("r97",           "-1 dmg")
     Latest("smoke grenade", "increased dmg")
     Latest("frag",          "pilot dmg 200 => 150")

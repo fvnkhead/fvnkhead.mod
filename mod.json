@@ -39,7 +39,7 @@
         },
         {
             "Name": "fm_welcome_notes",
-            "DefaultValue": "chat commands sometimes don't work when you're dead|testing spectator mod, type 'spec playername' in console"
+            "DefaultValue": "chat commands sometimes don't work when you're dead"
         },
 
         {

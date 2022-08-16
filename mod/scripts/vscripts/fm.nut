@@ -96,6 +96,7 @@ struct {
     table<entity, string> nextMapVoteTable
     bool nextMapHintEnabled
     array<string> nextMapHintedPlayers
+    bool nextMapRepeatEnabled
 
     bool switchEnabled
     int switchDiff
@@ -226,6 +227,7 @@ void function fm_Init() {
     file.nextMapVoteTable = {}
     file.nextMapHintEnabled = GetConVarBool("fm_nextmap_hint_enabled")
     file.nextMapHintedPlayers = []
+    file.nextMapRepeatEnabled = GetConVarBool("fm_nextmap_repeat_enabled")
 
     array<string> nextMapOnlyMaps = split(GetConVarString("fm_nextmap_only_maps"), ",")
     foreach (string dirtyMap in nextMapOnlyMaps) {
@@ -1200,6 +1202,11 @@ bool function CommandNextMap(entity player, array<string> args) {
 
     if (mapName == "anal") {
         AnnounceMessage(AnnounceColor(player.GetPlayerName() + " tried the funny"))
+        return false
+    }
+
+    if (nextMap == GetMapName() && !file.nextMapRepeatEnabled) {
+        SendMessage(player, ErrorColor("you can't vote for the current map"))
         return false
     }
 

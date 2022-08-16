@@ -101,6 +101,10 @@
             "Name": "fm_nextmap_hint_enabled",
             "DefaultValue": "1"
         },
+        {
+            "Name": "fm_nextmap_repeat_enabled", // allows voting for the current map again
+            "DefaultValue": "0"
+        },
 
         {
             "Name": "fm_switch_enabled",

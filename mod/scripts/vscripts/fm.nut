@@ -1235,9 +1235,10 @@ void function DoChangeMap(float waitTime) {
 
 string function GetUsualNextMap() {
     string currentMap = GetMapName()
+    bool noPlayers = GetPlayerArray().len() == 0
     bool isLastMap = currentMap == file.maps[file.maps.len() - 1]
     bool isUnknownMap = !file.maps.contains(currentMap)
-    if (isLastMap || isUnknownMap) {
+    if (noPlayers || isLastMap || isUnknownMap) {
         return file.maps[0]
     }
 

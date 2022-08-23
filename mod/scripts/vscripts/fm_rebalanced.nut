@@ -37,7 +37,7 @@ void function fm_RebalancedInit() {
     Nerf("dmr",             "more falloff")
     Nerf("eva8",            "improved dmg calculation")
     Nerf("mozam",           "dmg 30 => 25")
-    Nerf("mastiff")         "dmg 20 => 17")
+    Nerf("mastiff",         "dmg 20 => 17")
     Nerf("p2016",           "dmg 30 => 20")
     Nerf("re45",            "dmg 20 => 12")
     Nerf("gravstar",        "25% slower recharge")

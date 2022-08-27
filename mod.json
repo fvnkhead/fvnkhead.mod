@@ -279,6 +279,15 @@
         {
             "Name": "fm_antispam_limit",
             "DefaultValue": "10"
+        },
+
+        {
+            "Name": "fm_kick_words_enabled",
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "fm_kick_words",
+            "DefaultValue": "nigger,faggot"
         }
     ],
     "Scripts": [

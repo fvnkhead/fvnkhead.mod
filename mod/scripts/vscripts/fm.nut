@@ -167,9 +167,6 @@ struct {
     int antispamPeriod
     int antispamLimit
     table< entity, array<float> > playerMessageTimes
-
-    bool kickWordsEnabled
-    array<string> kickWords
 } file
 
 //------------------------------------------------------------------------------
@@ -319,13 +316,6 @@ void function fm_Init() {
     file.antispamPeriod = GetConVarInt("fm_antispam_period")
     file.antispamLimit = GetConVarInt("fm_antispam_limit")
     file.playerMessageTimes = {}
-
-    file.kickWordsEnabled = GetConVarBool("fm_kick_enabled")
-    file.kickWords = []
-    array<string> kickWords = split(GetConVarString("fm_kick_words"), ",")
-    foreach (string kickWord in kickWords) {
-        file.kickWords.append(kickWord.tolower())
-    }
 
     // define commands
     CommandInfo cmdHelp = NewCommandInfo(
@@ -689,13 +679,8 @@ void function fm_Init() {
     }
 
 
-    // chat callbacks
-    if (file.kickWordsEnabled) {
-        AddCallback_OnReceivedSayTextMessage(KickWordsCallback)
-    }
-
+    // the beef
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
-
     if (file.antispamEnabled) {
         AddCallback_OnReceivedSayTextMessage(CheckSpam)
     }
@@ -890,21 +875,6 @@ ClServer_MessageStruct function CheckSpam(ClServer_MessageStruct messageInfo) {
     ServerCommand("kick " + playerName)
     Log("[CheckSpam] " + playerName + " kicked due to spam")
     AnnounceMessage(AnnounceColor(playerName + " has been kicked due to spam"))
-
-    return messageInfo
-}
-
-ClServer_MessageStruct function KickWordsCallback(ClServer_MessageStruct messageInfo) {
-    string message = messageInfo.message.tolower()
-    array<string> words = split(message, " ")
-    foreach (string word in words) {
-        if (file.kickWords.contains(word)) {
-            messageInfo.shouldBlock = true
-            KickPlayer(messageInfo.player, false)
-            Log("[KickWordsCallback] " + messageInfo.player.GetPlayerName() + " kicked for message: " + messageInfo.message)
-            break
-        }
-    }
 
     return messageInfo
 }

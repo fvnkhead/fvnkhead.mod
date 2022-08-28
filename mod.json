@@ -266,6 +266,10 @@
             "Name": "fm_joke_kills_enabled",
             "DefaultValue": "1"
         },
+        {
+            "Name": "fm_joke_ezfrags_enabled",
+            "DefaultValue": "1"
+        },
 
         // misc
         {

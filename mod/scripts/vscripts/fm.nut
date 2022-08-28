@@ -160,6 +160,8 @@ struct {
 
     bool jokeKillsEnabled
 
+    bool jokeEzfragsEnabled
+
     bool customCommandsEnabled
     array<CustomCommand> customCommands
 
@@ -310,6 +312,8 @@ void function fm_Init() {
     file.marvinKillsTotal = 0
 
     file.jokeKillsEnabled = GetConVarBool("fm_joke_kills_enabled")
+
+    file.jokeEzfragsEnabled = GetConVarBool("fm_joke_ezfrags_enabled")
 
     // antispam
     file.antispamEnabled = GetConVarBool("fm_antispam_enabled")
@@ -680,7 +684,12 @@ void function fm_Init() {
 
 
     // the beef
+    if (file.jokeEzfragsEnabled) {
+        AddCallback_OnReceivedSayTextMessage(EzfragsCallback)
+    }
+
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
+
     if (file.antispamEnabled) {
         AddCallback_OnReceivedSayTextMessage(CheckSpam)
     }
@@ -876,6 +885,28 @@ ClServer_MessageStruct function CheckSpam(ClServer_MessageStruct messageInfo) {
     Log("[CheckSpam] " + playerName + " kicked due to spam")
     AnnounceMessage(AnnounceColor(playerName + " has been kicked due to spam"))
 
+    return messageInfo
+}
+
+ClServer_MessageStruct function EzfragsCallback(ClServer_MessageStruct messageInfo) {
+    if (messageInfo.shouldBlock) {
+        return messageInfo
+    }
+
+    if (messageInfo.message.tolower().find("ezfrags") == null) {
+        return messageInfo
+    }
+
+    array<string> words = []
+    foreach (string word in split(messageInfo.message, " ")) {
+        if (word.tolower().find("ezfrags") != null) {
+            words.append("https://tinyurl.com/mrxtmpj5")
+        } else {
+            words.append(word)
+        }
+    }
+
+    messageInfo.message = Join(words, " ")
     return messageInfo
 }
 

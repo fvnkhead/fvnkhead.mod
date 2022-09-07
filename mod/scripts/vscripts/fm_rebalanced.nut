@@ -10,7 +10,6 @@ global array<RebalancedEntry> NERF_LIST = []
 global array<RebalancedEntry> LATEST_LIST = []
 
 void function fm_RebalancedInit() {
-    Buff("smr",             "explosion dmg 15 => 20")
     Buff("softball",        "explosion dmg 90 => 100")
     Buff("b3 wingman",      "fire rate 2.6 => 3.7")
     Buff("arc grenade",     "explodes on impact, reduced explosion")
@@ -31,27 +30,26 @@ void function fm_RebalancedInit() {
     Nerf("r201 & r101",     "dmg 25 => 18")
     Nerf("flatline",        "dmg 30 => 20")
     Nerf("g2",              "more falloff")
-    Nerf("hemlok",          "dmg 33 => 25")
-    Nerf("spitfire",        "dmg 35 => 28")
+    Nerf("hemlok",          "dmg 33 => 30")
+    Nerf("spitfire",        "dmg 35 => 25")
     Nerf("devotion",        "dmg 25 => 22")
     Nerf("l-star",          "dmg 25 => 20")
+    Nerf("smr",             "explosion dmg 15 => 20, less damage up close")
     Nerf("dmr",             "more falloff")
     Nerf("eva8",            "improved dmg calculation")
     Nerf("mozam",           "dmg 30 => 25")
     Nerf("mastiff",         "dmg 20 => 17")
     Nerf("p2016",           "dmg 30 => 20")
     Nerf("re45",            "dmg 20 => 12")
+    Nerf("charge rifle",    "added falloff")
     Nerf("gravstar",        "25% slower recharge")
     Nerf("frag",            "pilot dmg 200 => 140")
     Nerf("stim & phase",    "25% slower recharge")
 
     Latest("arc grenade",   "reduced explosion")
     Latest("l-star",        "dmg 25 => 20")
-    Latest("frag",          "pilot dmg 150 => 140")
-    Latest("mastiff",       "dmg 20 => 17")
-    Latest("silencers",     "don't break cloak")
-    Latest("tactikill",     "25% => 40%")
-    Latest("thunderbolt",   "increased dmg to pilots")
+    Latest("spitfire",      "dmg 28 => 25")
+    Latest("charge rifle",  "added falloff")
 }
 
 void function Buff(string name, string desc) {

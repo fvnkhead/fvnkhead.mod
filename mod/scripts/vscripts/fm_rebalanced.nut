@@ -24,13 +24,12 @@ void function fm_RebalancedInit() {
 
     Nerf("melee",           "dmg 100 => 60")
     Nerf("car",             "dmg 25 => 15")
-    Nerf("r97",             "dmg 20 => 13")
+    Nerf("r97",             "dmg 20 => 14")
     Nerf("alternator",      "dmg 35 => 22")
     Nerf("volt",            "dmg 25 => 18")
     Nerf("r201 & r101",     "dmg 25 => 18")
     Nerf("flatline",        "dmg 30 => 20")
     Nerf("g2",              "more falloff")
-    Nerf("hemlok",          "dmg 33 => 30")
     Nerf("spitfire",        "dmg 35 => 25")
     Nerf("devotion",        "dmg 25 => 22")
     Nerf("l-star",          "dmg 25 => 20")
@@ -39,9 +38,10 @@ void function fm_RebalancedInit() {
     Nerf("eva8",            "improved dmg calculation")
     Nerf("mozam",           "dmg 30 => 25")
     Nerf("mastiff",         "dmg 20 => 17")
+    Nerf("wingman elite",   "increased falloff")
     Nerf("p2016",           "dmg 30 => 20")
     Nerf("re45",            "dmg 20 => 12")
-    Nerf("charge rifle",    "added falloff")
+    Nerf("charge rifle",    "slower swap")
     Nerf("gravstar",        "25% slower recharge")
     Nerf("frag",            "pilot dmg 200 => 140")
     Nerf("stim & phase",    "25% slower recharge")
@@ -49,7 +49,8 @@ void function fm_RebalancedInit() {
     Latest("arc grenade",   "reduced explosion")
     Latest("l-star",        "dmg 25 => 20")
     Latest("spitfire",      "dmg 28 => 25")
-    Latest("charge rifle",  "added falloff")
+    Latest("charge rifle",  "slower swap")
+    Latest("wingman elite", "increased falloff")
 }
 
 void function Buff(string name, string desc) {

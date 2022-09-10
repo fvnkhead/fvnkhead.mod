@@ -150,6 +150,7 @@ struct {
     bool tankEnabled
     bool flyEnabled
     bool mrvnEnabled
+    bool gruntEnabled
 
     bool jokePitfallsEnabled
     table<string, int> pitfallTable
@@ -297,6 +298,7 @@ void function fm_Init() {
     file.tankEnabled = GetConVarBool("fm_tank_enabled")
     file.flyEnabled = GetConVarBool("fm_fly_enabled")
     file.mrvnEnabled = GetConVarBool("fm_mrvn_enabled")
+    file.gruntEnabled = GetConVarBool("fm_grunt_enabled")
 
     // player experience
     file.killstreakEnabled = GetConVarBool("fm_killstreak_enabled")
@@ -520,6 +522,14 @@ void function fm_Init() {
         C_ADMIN
     )
 
+    CommandInfo cmdGrunt = NewCommandInfo(
+        ["!grunt"],
+        CommandGrunt,
+        0, 1,
+        "!grunt [player name] => spawn a grunt", "",
+        C_ADMIN
+    )
+
     // add commands and callbacks based on convars
     if (file.adminAuthEnabled) {
         file.commands.append(cmdAuth)
@@ -640,6 +650,10 @@ void function fm_Init() {
 
     if (file.mrvnEnabled) {
         file.commands.append(cmdMrvn)
+    }
+
+    if (file.gruntEnabled) {
+        file.commands.append(cmdGrunt)
     }
 
     if (file.rollEnabled) {
@@ -2058,6 +2072,28 @@ bool function CommandMrvn(entity player, array<string> args) {
     return true
 }
 
+bool function CommandGrunt(entity player, array<string> args) {
+    string targetSearchName = args.len() == 1 ? args[0] : "me"
+    PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, PS_MODIFIERS | PS_ALIVE)
+    if (result.kind < 0) {
+        return false
+    }
+
+    foreach (entity target in result.players) {
+        if (!IsAlive(target)) {
+            continue
+        }
+
+        entity grunt = CreateSoldier(target.GetTeam(), target.GetOrigin(), target.GetAngles())
+        DispatchSpawn(grunt)
+        string squadName = format("%s_%d", target.GetPlayerName(), target.GetTeam())
+        SetSquad(grunt, squadName)
+        grunt.EnableNPCFlag(NPC_ALLOW_PATROL | NPC_ALLOW_INVESTIGATE | NPC_ALLOW_HAND_SIGNALS | NPC_ALLOW_FLEE)
+    }
+
+    return true
+}
+
 //------------------------------------------------------------------------------
 // roll
 //------------------------------------------------------------------------------
@@ -2262,6 +2298,11 @@ PlayerSearchResult function RunPlayerSearch(
 
     if ((flags & PS_MODIFIERS) > 0) {
         switch (playerName.tolower()) {
+            case "me":
+                result.kind = PlayerSearchResultKind.SINGLE
+                result.players.append(commandUser)
+                return result
+
             case "all":
                 result.kind = PlayerSearchResultKind.ALL
                 result.players = GetPlayerArray()
@@ -2317,6 +2358,16 @@ PlayerSearchResult function RunPlayerSearch(
     return result
 }
 
+string function TeamName(int team) {
+    if (team == TEAM_IMC) {
+        return "imc"
+    } else if (team == TEAM_MILITIA) {
+        return "militia"
+    }
+
+    return "???"
+}
+
 string function PlayerSearchResultName(entity commandUser, PlayerSearchResult result) {
     switch (result.kind) {
         case PlayerSearchResultKind.SINGLE:
@@ -2330,14 +2381,14 @@ string function PlayerSearchResultName(entity commandUser, PlayerSearchResult re
                 return "everyone"
             }
             int usTeam = commandUser.GetTeam()
-            return "team " + GetTeamName(usTeam).tolower()
+            return "team " + TeamName(usTeam)
 
         case PlayerSearchResultKind.THEM:
             if (IsFFAGame()) {
                 return "everyone"
             }
             int themTeam = GetOtherTeam(commandUser.GetTeam())
-            return "team " + GetTeamName(themTeam).tolower()
+            return "team " + TeamName(themTeam)
 
         default:
             break

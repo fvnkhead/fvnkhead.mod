@@ -1700,6 +1700,11 @@ void function Extend_OnClientDisconnected(entity player) {
 // skip
 //------------------------------------------------------------------------------
 bool function CommandSkip(entity player, array<string> args) {
+    if (GetGameState() < eGameState.Playing) {
+        SendMessage(player, ErrorColor("match hasn't begun yet"))
+        return false
+    }
+
     if (GetGameState() >= eGameState.WinnerDetermined) {
         SendMessage(player, ErrorColor("match is over already"))
         return false

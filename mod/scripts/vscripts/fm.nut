@@ -1245,7 +1245,7 @@ bool function CommandNextMap(entity player, array<string> args) {
         return false
     }
 
-    if (mapName == "anal") {
+    if (mapName.tolower() == "anal") {
         AnnounceMessage(AnnounceColor(player.GetPlayerName() + " tried the funny"))
         return false
     }

@@ -156,11 +156,8 @@ struct {
     table<string, int> pitfallTable
 
     bool jokeMarvinEnabled
-    table<string, int> marvinKillTable
-    int marvinKillsTotal
-
+    bool jokeDroneEnabled
     bool jokeKillsEnabled
-
     bool jokeEzfragsEnabled
 
     bool customCommandsEnabled
@@ -310,11 +307,8 @@ void function fm_Init() {
     file.pitfallTable = {}
 
     file.jokeMarvinEnabled = GetConVarBool("fm_joke_marvin_enabled")
-    file.marvinKillTable = {}
-    file.marvinKillsTotal = 0
-
+    file.jokeDroneEnabled = GetConVarBool("fm_joke_drone_enabled")
     file.jokeKillsEnabled = GetConVarBool("fm_joke_kills_enabled")
-
     file.jokeEzfragsEnabled = GetConVarBool("fm_joke_ezfrags_enabled")
 
     // antispam
@@ -670,6 +664,10 @@ void function fm_Init() {
 
     if (file.jokeMarvinEnabled) {
         AddDeathCallback("npc_marvin", Marvin_DeathCallback)
+    }
+
+    if (file.jokeDroneEnabled) {
+        AddDeathCallback("npc_drone", Drone_DeathCallback)
     }
 
     if (file.jokeKillsEnabled) {
@@ -2238,24 +2236,23 @@ void function Marvin_DeathCallback(entity victim, var damageInfo) {
         return
     }
 
-    file.marvinKillsTotal += 1
+    string playerName = attacker.GetPlayerName()
+    string msg = playerName + " killed a marvin"
+    AnnounceMessage(AnnounceColor(msg))
+}
+
+//------------------------------------------------------------------------------
+// drone joke
+//------------------------------------------------------------------------------
+void function Drone_DeathCallback(entity victim, var damageInfo) {
+    entity attacker = DamageInfo_GetAttacker(damageInfo)
+    if (!IsValid(attacker) || !attacker.IsPlayer()) {
+        return
+    }
 
     string playerName = attacker.GetPlayerName()
-    int count = 1
-    if (playerName in file.marvinKillTable) {
-        count = file.marvinKillTable[playerName] + 1
-    }
-
-    string msg = playerName + " has killed " + count + " marvins"
-    if (count == 1) {
-        msg = playerName + " killed a marvin"
-    } else if (count == 2) {
-        msg = playerName + " killed a marvin, again"
-    }
-
+    string msg = playerName + " destroyed a drone"
     AnnounceMessage(AnnounceColor(msg))
-
-    file.marvinKillTable[playerName] <- count
 }
 
 //------------------------------------------------------------------------------

@@ -267,6 +267,10 @@
             "DefaultValue": "1"
         },
         {
+            "Name": "fm_joke_drone_enabled",
+            "DefaultValue": "1"
+        },
+        {
             "Name": "fm_joke_kills_enabled",
             "DefaultValue": "1"
         },

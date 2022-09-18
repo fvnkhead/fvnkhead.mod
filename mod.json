@@ -296,6 +296,10 @@
         {
             "Name": "fm_antispam_limit",
             "DefaultValue": "10"
+        },
+        {
+            "Name": "fm_chat_mention_enabled",
+            "DefaultValue": "1"
         }
     ],
     "Scripts": [

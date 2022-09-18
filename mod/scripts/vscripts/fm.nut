@@ -170,6 +170,8 @@ struct {
     int antispamPeriod
     int antispamLimit
     table< entity, array<float> > playerMessageTimes
+
+    bool chatMentionEnabled
 } file
 
 //------------------------------------------------------------------------------
@@ -316,11 +318,13 @@ void function fm_Init() {
     file.jokeKillsEnabled = GetConVarBool("fm_joke_kills_enabled")
     file.jokeEzfragsEnabled = GetConVarBool("fm_joke_ezfrags_enabled")
 
-    // antispam
+    // misc
     file.antispamEnabled = GetConVarBool("fm_antispam_enabled")
     file.antispamPeriod = GetConVarInt("fm_antispam_period")
     file.antispamLimit = GetConVarInt("fm_antispam_limit")
     file.playerMessageTimes = {}
+
+    file.chatMentionEnabled = GetConVarBool("fm_chat_mention_enabled")
 
     // define commands
     CommandInfo cmdHelp = NewCommandInfo(
@@ -730,7 +734,11 @@ void function fm_Init() {
     AddCallback_OnReceivedSayTextMessage(ChatCallback)
 
     if (file.antispamEnabled) {
-        AddCallback_OnReceivedSayTextMessage(CheckSpam)
+        AddCallback_OnReceivedSayTextMessage(AntispamCallback)
+    }
+
+    if (file.chatMentionEnabled) {
+        AddCallback_OnReceivedSayTextMessage(ChatMentionCallback)
     }
 }
 
@@ -767,6 +775,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 
     // fuzz check
     if (args.len() == 0) {
+        messageInfo.shouldBlock = true
         return messageInfo
     }
 
@@ -882,7 +891,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
     return messageInfo
 }
 
-ClServer_MessageStruct function CheckSpam(ClServer_MessageStruct messageInfo) {
+ClServer_MessageStruct function AntispamCallback(ClServer_MessageStruct messageInfo) {
     // only visible messages are counted towards spam
     if (messageInfo.shouldBlock) {
         return messageInfo
@@ -921,7 +930,7 @@ ClServer_MessageStruct function CheckSpam(ClServer_MessageStruct messageInfo) {
     // take action at this point
     string playerName = player.GetPlayerName()
     ServerCommand("kick " + playerName)
-    Log("[CheckSpam] " + playerName + " kicked due to spam")
+    Log("[AntispamCallback] " + playerName + " kicked due to spam")
     AnnounceMessage(AnnounceColor(playerName + " has been kicked due to spam"))
 
     return messageInfo
@@ -946,6 +955,37 @@ ClServer_MessageStruct function EzfragsCallback(ClServer_MessageStruct messageIn
     }
 
     messageInfo.message = Join(words, " ")
+    return messageInfo
+}
+
+ClServer_MessageStruct function ChatMentionCallback(ClServer_MessageStruct messageInfo) {
+    // fuzz sanitizing is done in ChatCallBack
+    if (messageInfo.shouldBlock) {
+        return messageInfo
+    }
+
+    array<string> oldWords = split(messageInfo.message, " ")
+    array<string> newWords = []
+    foreach (string word in oldWords) {
+        bool isMention = format("%c", word[0]) == "@"
+        if (!isMention || word.len() == 1) {
+            newWords.append(word)
+            continue
+        }
+
+        string namePart = word.slice(1)
+        array<entity> players = FindPlayersBySubstring(namePart)
+        if (players.len() != 1) {
+            newWords.append(word)
+            continue
+        }
+
+        entity player = players[0]
+        string mention = Green("@" + player.GetPlayerName() + White(""))
+        newWords.append(mention)
+    }
+
+    messageInfo.message = Join(newWords, " ")
     return messageInfo
 }
 

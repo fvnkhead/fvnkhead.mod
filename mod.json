@@ -204,6 +204,11 @@
         },
 
         {
+            "Name": "fm_lockdown_enabled",
+            "DefaultValue": "1"
+        },
+
+        {
             "Name": "fm_yell_enabled",
             "DefaultValue": "1"
         },

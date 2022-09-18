@@ -138,6 +138,9 @@ struct {
     bool muteSave
     array<string> mutedPlayers
 
+    bool lockdownEnabled
+    bool isLockdown
+
     bool killstreakEnabled
     int killstreakIncrement
     table<string, int> playerKillstreaks
@@ -286,6 +289,8 @@ void function fm_Init() {
     file.muteEnabled = GetConVarBool("fm_mute_enabled")
     file.muteSave = GetConVarBool("fm_mute_save")
     file.mutedPlayers = []
+
+    file.lockdownEnabled = GetConVarBool("fm_lockdown_enabled")
 
     file.yellEnabled = GetConVarBool("fm_yell_enabled")
     file.slayEnabled = GetConVarBool("fm_slay_enabled")
@@ -441,6 +446,22 @@ void function fm_Init() {
         CommandUnmute,
         1, 1,
         "!unmute <full or partial player name> => unmute a player", "",
+        C_ADMIN
+    )
+
+    CommandInfo cmdLockdown = NewCommandInfo(
+        ["!lockdown"],
+        CommandLockdown,
+        0, 0,
+        "!lockdown => prevent new players from joining", "",
+        C_ADMIN
+    )
+
+    CommandInfo cmdUnlockdown = NewCommandInfo(
+        ["!unlockdown"],
+        CommandUnlockdown,
+        0, 0,
+        "!unlockdown => allow new players to join", "",
         C_ADMIN
     )
 
@@ -611,6 +632,12 @@ void function fm_Init() {
         if (!file.muteSave) {
             AddCallback_OnClientDisconnected(Mute_OnClientDisconnected)
         }
+    }
+
+    if (file.lockdownEnabled) {
+        file.commands.append(cmdLockdown)
+        file.commands.append(cmdUnlockdown)
+        AddCallback_OnClientConnected(Lockdown_OnPlayerConnected)
     }
 
     if (file.yellEnabled) {
@@ -1887,6 +1914,46 @@ void function Mute_OnClientDisconnected(entity player) {
     if (file.mutedPlayers.contains(uid)) {
         file.mutedPlayers.remove(file.mutedPlayers.find(uid))
     }
+}
+
+//------------------------------------------------------------------------------
+// lockdown
+//------------------------------------------------------------------------------
+bool function CommandLockdown(entity player, array<string> _args) {
+    if (file.isLockdown) {
+        SendMessage(player, ErrorColor("server is already locked down"))
+        return false
+    }
+
+    file.isLockdown = true
+
+    string msg = AnnounceColor("server is on ")
+    msg += ErrorColor("LOCKDOWN")
+    msg += AnnounceColor(" (no new players can join)")
+    AnnounceMessage(msg)
+
+    return true
+}
+
+bool function CommandUnlockdown(entity player, array<string> _args) {
+    if (!file.isLockdown) {
+        SendMessage(player, ErrorColor("server is not locked down"))
+        return false
+    }
+
+    file.isLockdown = false
+    AnnounceMessage(AnnounceColor("server is no longer on lockdown"))
+
+    return true
+}
+
+void function Lockdown_OnPlayerConnected(entity player) {
+    if (!file.isLockdown || IsAdmin(player)) {
+        return
+    }
+
+    string playerName = player.GetPlayerName()
+    ServerCommand("kick " + playerName)
 }
 
 //------------------------------------------------------------------------------

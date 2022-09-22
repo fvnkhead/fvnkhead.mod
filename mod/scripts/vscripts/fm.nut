@@ -981,7 +981,7 @@ ClServer_MessageStruct function ChatMentionCallback(ClServer_MessageStruct messa
         }
 
         entity player = players[0]
-        string mention = Green("@" + player.GetPlayerName() + White(""))
+        string mention = PrivateColor("@" + player.GetPlayerName() + White(""))
         newWords.append(mention)
     }
 

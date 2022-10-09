@@ -26,7 +26,7 @@
 
         {
             "Name": "fm_admin_auth_unauth_chat_block",
-            "DefaultValue": "1"
+            "DefaultValue": "0"
         },
 
         {

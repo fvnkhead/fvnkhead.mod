@@ -155,6 +155,8 @@ struct {
     bool mrvnEnabled
     bool gruntEnabled
 
+    bool chaosEnabled
+
     bool jokePitfallsEnabled
     table<string, int> pitfallTable
 
@@ -303,6 +305,7 @@ void function fm_Init() {
     file.flyEnabled = GetConVarBool("fm_fly_enabled")
     file.mrvnEnabled = GetConVarBool("fm_mrvn_enabled")
     file.gruntEnabled = GetConVarBool("fm_grunt_enabled")
+    file.chaosEnabled = GetConVarBool("fm_chaos_enabled")
 
     // player experience
     file.killstreakEnabled = GetConVarBool("fm_killstreak_enabled")
@@ -549,6 +552,14 @@ void function fm_Init() {
         C_ADMIN
     )
 
+    CommandInfo cmdChaos = NewCommandInfo(
+        ["!chaos"],
+        CommandChaos,
+        0, 0,
+        "!chaos => chaos", "",
+        C_ADMIN
+    )
+
     // add commands and callbacks based on convars
     if (file.adminAuthEnabled) {
         file.commands.append(cmdAuth)
@@ -679,6 +690,10 @@ void function fm_Init() {
 
     if (file.gruntEnabled) {
         file.commands.append(cmdGrunt)
+    }
+
+    if (file.chaosEnabled) {
+        file.commands.append(cmdChaos)
     }
 
     if (file.rollEnabled) {
@@ -2177,6 +2192,10 @@ bool function CommandMrvn(entity player, array<string> args) {
     return true
 }
 
+//------------------------------------------------------------------------------
+// grunt
+//------------------------------------------------------------------------------
+
 bool function CommandGrunt(entity player, array<string> args) {
     string targetSearchName = args.len() == 1 ? args[0] : "me"
     PlayerSearchResult result = RunPlayerSearch(player, targetSearchName, PS_MODIFIERS | PS_ALIVE)
@@ -2197,6 +2216,60 @@ bool function CommandGrunt(entity player, array<string> args) {
     }
 
     return true
+}
+
+//------------------------------------------------------------------------------
+// chaos
+//------------------------------------------------------------------------------
+bool function CommandChaos(entity player, array<string> args) {
+    array<entity> players = GetPlayerArray()
+    array<entity> spawnpoints = SpawnPoints_GetPilot()
+    Log("[CommandChaos] spawnpoints.len = " + spawnpoints.len())
+    int spawnCount = 0
+    for (int i = 0; i < spawnpoints.len(); i++) {
+        if (i >= 25) {
+            break;
+        }
+
+        entity spawnpoint = spawnpoints[i]
+
+        if (spawnpoint.IsOccupied()) {
+            continue
+        }
+
+        int team = players.getrandom().GetTeam()
+        if (!IsFFAGame() && RandomInt(2) == 0) {
+            team = GetOtherTeam(team)
+        }
+
+        SpawnRandomNPC(team, spawnpoint.GetOrigin(), spawnpoint.GetAngles())
+        spawnCount += 1
+    }
+
+    string msg = format("%d NPCs spawned", spawnCount)
+    SendMessage(player, PrivateColor(msg))
+
+    return true
+}
+
+void function SpawnRandomNPC(int team, vector origin, vector angles) {
+    float gruntFrac = 1.0
+    float spectreFrac = 0.5
+    float reaperFrac = 0.25
+
+    float roll = RandomFloat(1.0)
+    entity npc = null
+    if (roll <= reaperFrac) {
+        npc = CreateSuperSpectre(team, origin, angles)
+        SetSpawnOption_Titanfall(npc)
+        SetSpawnOption_Warpfall(npc)
+    } else if (roll <= spectreFrac) {
+        npc = CreateSpectre(team, origin, angles)
+    } else if (roll <= gruntFrac) {
+        npc = CreateSoldier(team, origin, angles)
+    }
+
+    DispatchSpawn(npc)
 }
 
 //------------------------------------------------------------------------------

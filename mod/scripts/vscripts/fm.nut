@@ -2180,14 +2180,32 @@ bool function CommandUnfly(entity player, array<string> args) {
 //------------------------------------------------------------------------------
 
 bool function CommandMrvn(entity player, array<string> args) {
-    int health = 1000
-    entity marvin = CreateMarvin(TEAM_UNASSIGNED, player.GetOrigin(), player.GetAngles())
-    marvin.kv.health = health
-    marvin.kv.max_health = health
-    DispatchSpawn(marvin)
-    HideName(marvin)
+    const health = 100
+    array<entity> spawnpoints = SpawnPoints_GetPilot()
+    spawnpoints.randomize()
 
-    thread MarvinJobThink(marvin)
+    int spawnCount = 0
+    foreach (entity spawnpoint in spawnpoints) {
+        if (spawnCount >= 25) {
+            break
+        }
+
+        if (spawnpoint.IsOccupied()) {
+            continue
+        }
+
+        entity marvin = CreateMarvin(TEAM_UNASSIGNED, spawnpoint.GetOrigin(), spawnpoint.GetAngles())
+        marvin.kv.health = health
+        marvin.kv.max_health = health
+        DispatchSpawn(marvin)
+        HideName(marvin)
+        thread MarvinJobThink(marvin)
+
+        spawnCount += 1
+    }
+
+    string msg = format("%d marvins spawned", spawnCount)
+    SendMessage(player, PrivateColor(msg))
 
     return true
 }

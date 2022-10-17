@@ -2,7 +2,7 @@
     "Name": "fvnkhead.mod",
     "Description": "fvnkhead's server mod",
     "Version": "1.0.0",
-    "LoadPriority": 1,
+    "LoadPriority": 2,
     "RequiredOnClient": false,
     "ConVars": [
         // user & admin commands
@@ -180,19 +180,6 @@
             "DefaultValue": "3"
         },
 
-        {
-            "Name": "fm_rebalanced_buffs_enabled",
-            "DefaultValue": "0"
-        },
-        {
-            "Name": "fm_rebalanced_nerfs_enabled",
-            "DefaultValue": "0"
-        },
-        {
-            "Name": "fm_rebalanced_latest_enabled",
-            "DefaultValue": "0"
-        },
-
         // admin commands
         {
             "Name": "fm_mute_enabled",
@@ -306,19 +293,18 @@
         {
             "Name": "fm_chat_mention_enabled",
             "DefaultValue": "1"
+        },
+
+        // integrations
+        {
+            "Name": "fm_retouched_enabled",
+            "DefaultValue": "1"
         }
     ],
     "Scripts": [
         {
-            "Path": "fm_rebalanced.nut",
-            "RunOn": "SERVER && MP",
-            "ServerCallback": {
-                "After": "fm_RebalancedInit"
-            }
-        },
-        {
             "Path": "fm.nut",
-            "RunOn": "SERVER && MP",
+            "RunOn": "SERVER",
             "ServerCallback": {
                 "After": "fm_Init"
             }

@@ -59,7 +59,7 @@ struct NextMapScore {
 
 struct CustomCommand {
     string name
-    string text
+    array<string> lines
 }
 
 struct {
@@ -130,10 +130,6 @@ struct {
     int rollLimit
     table<string, int> rollCountTable
 
-    bool rebalancedBuffsEnabled
-    bool rebalancedNerfsEnabled
-    bool rebalancedLatestEnabled
-
     bool muteEnabled
     bool muteSave
     array<string> mutedPlayers
@@ -174,6 +170,9 @@ struct {
     table< entity, array<float> > playerMessageTimes
 
     bool chatMentionEnabled
+
+    bool retouchedEnabled
+    array<CustomCommand> retouchedCommands
 } file
 
 //------------------------------------------------------------------------------
@@ -284,11 +283,6 @@ void function fm_Init() {
     file.rollLimit = GetConVarInt("fm_roll_limit")
     file.rollCountTable = {}
 
-    // rebalanced
-    file.rebalancedBuffsEnabled = GetConVarBool("fm_rebalanced_buffs_enabled")
-    file.rebalancedNerfsEnabled = GetConVarBool("fm_rebalanced_nerfs_enabled")
-    file.rebalancedLatestEnabled = GetConVarBool("fm_rebalanced_latest_enabled")
-
     // admin commands
     file.muteEnabled = GetConVarBool("fm_mute_enabled")
     file.muteSave = GetConVarBool("fm_mute_save")
@@ -328,6 +322,9 @@ void function fm_Init() {
     file.playerMessageTimes = {}
 
     file.chatMentionEnabled = GetConVarBool("fm_chat_mention_enabled")
+
+    // integrations
+    file.retouchedEnabled = GetConVarBool("fm_retouched_enabled") && GetConVarBool("retouched_loaded")
 
     // define commands
     CommandInfo cmdHelp = NewCommandInfo(
@@ -401,27 +398,6 @@ void function fm_Init() {
         "!skip => vote to skip current map",
         "!skip (force) => vote to skip current map (or force)",
         C_FORCE
-    )
-
-    CommandInfo cmdBuffs = NewCommandInfo(
-        ["!buffs"], 
-        CommandBuffs,
-        0, 0,
-        "!buffs => list buffs on server", ""
-    )
-
-    CommandInfo cmdNerfs = NewCommandInfo(
-        ["!nerfs"], 
-        CommandNerfs,
-        0, 0,
-        "!nerfs => list nerfs on server", ""
-    )
-
-    CommandInfo cmdLatest = NewCommandInfo(
-        ["!latest"],
-        CommandLatest,
-        0, 0,
-        "!latest => list latest buffs/nerfs on server", ""
     )
 
     CommandInfo cmdRoll = NewCommandInfo(
@@ -629,18 +605,6 @@ void function fm_Init() {
         AddCallback_OnClientDisconnected(Skip_OnClientDisconnected)
     }
 
-    if (file.rebalancedBuffsEnabled) {
-        file.commands.append(cmdBuffs)
-    }
-
-    if (file.rebalancedNerfsEnabled) {
-        file.commands.append(cmdNerfs)
-    }
-
-    if (file.rebalancedLatestEnabled) {
-        file.commands.append(cmdLatest)
-    }
-
     if (file.muteEnabled) {
         file.commands.append(cmdMute)
         file.commands.append(cmdUnmute)
@@ -735,11 +699,25 @@ void function fm_Init() {
 
             CustomCommand command
             command.name = pair[0]
-            command.text = pair[1]
+            command.lines = [] 
+            command.lines.append(pair[1])
             file.customCommands.append(command)
         }
     }
 
+    // retouched integration
+    file.retouchedCommands = []
+    if (file.retouchedEnabled) {
+        foreach (array<string> changes in RETOUCHED_CHANGELIST) {
+            CustomCommand c
+            c.name = "!" + changes[0].tolower()
+            for (int i = 1; i < changes.len(); i++) {
+                c.lines.append(changes[i].tolower())
+            }
+
+            file.retouchedCommands.append(c)
+        }
+    }
 
     // the beef
     if (file.jokeEzfragsEnabled) {
@@ -823,8 +801,23 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
 
     foreach (CustomCommand c in file.customCommands) {
         if (c.name == command) {
-            SendMessage(player, PrivateColor(c.text))
+            foreach (string line in c.lines) {
+                SendMessage(player, PrivateColor(line))
+            }
+
             return messageInfo
+        }
+    }
+
+    if (file.retouchedEnabled) {
+        foreach (CustomCommand c in file.retouchedCommands) {
+            if (c.name == command) {
+                foreach (string line in c.lines) {
+                    SendMessage(player, PrivateColor(line))
+                }
+
+                return messageInfo
+            }
         }
     }
 
@@ -1050,6 +1043,7 @@ void function Welcome_OnClientDisconnected(entity player) {
 //------------------------------------------------------------------------------
 bool function CommandHelp(entity player, array<string> args) {
     array<string> userCommands = []
+    array<string> retouchedCommands = []
     array<string> adminCommands = []
     foreach (CommandInfo c in file.commands) {
         string names = Join(c.names, "/")
@@ -1064,8 +1058,19 @@ bool function CommandHelp(entity player, array<string> args) {
         userCommands.append(c.name)
     }
 
+    if (file.retouchedEnabled) {
+        foreach (CustomCommand c in file.retouchedCommands) {
+            retouchedCommands.append(c.name)
+        }
+    }
+
     string userHelp = "available commands: " + Join(userCommands, ", ")
     SendMessage(player, PrivateColor(userHelp))
+
+    string retouchedHelp = "balance changes: " + Join(retouchedCommands, ", ")
+    if (retouchedCommands.len() > 0) {
+        SendMessage(player, PrivateColor(retouchedHelp))
+    }
 
     if (IsAdmin(player)) {
         string adminHelp = "admin commands: " + Join(adminCommands, ", ")
@@ -1861,61 +1866,6 @@ void function Skip_OnClientDisconnected(entity player) {
     if (file.skipVoters.contains(player)) {
         file.skipVoters.remove(file.skipVoters.find(player))
     }
-}
-
-//------------------------------------------------------------------------------
-// rebalanced
-//------------------------------------------------------------------------------
-const int CHAT_LINE_MAX = 95
-
-bool function CommandBuffs(entity player, array<string> args) {
-    PrintRebalancedEntryList(player, BUFF_LIST)
-    return true
-}
-
-bool function CommandNerfs(entity player, array<string> args) {
-    PrintRebalancedEntryList(player, NERF_LIST)
-    return true
-}
-
-bool function CommandLatest(entity player, array<string> args) {
-    PrintRebalancedEntryList(player, LATEST_LIST)
-    return true
-}
-
-void function PrintRebalancedEntryList(entity player, array<RebalancedEntry> entries) {
-    if (entries.len() == 0) {
-        return
-    }
-
-    array<string> formattedEntries = []
-    foreach (RebalancedEntry entry in entries) {
-        formattedEntries.append(FormatRebalancedEntry(entry))
-    }
-
-    string sep = "  |  "
-
-    array<string> lines = []
-    string currentLine = formattedEntries[0]
-    for (int i = 1; i < formattedEntries.len(); i++) {
-        string entry = formattedEntries[i]
-        if (currentLine.len() + sep.len() + entry.len() > CHAT_LINE_MAX) {
-            lines.append(currentLine)
-            currentLine = entry
-            continue
-        }
-
-        currentLine = currentLine + sep + entry
-    }
-    lines.append(currentLine)
-
-    foreach (string line in lines) {
-        SendMessage(player, PrivateColor(line))
-    }
-}
-
-string function FormatRebalancedEntry(RebalancedEntry entry) {
-    return format("[%s: %s]", entry.name, entry.desc)
 }
 
 //------------------------------------------------------------------------------

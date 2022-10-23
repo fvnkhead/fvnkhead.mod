@@ -790,7 +790,7 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
             messageInfo.shouldBlock = true
         }
 
-        if (file.mutedPlayers.contains(player.GetUID())) {
+        if (file.mutedPlayers.contains(player.GetPlayerName())) {
             Log("[ChatCallback] muted message from " + player.GetPlayerName() + ": " + messageInfo.message)
             SendMessage(player, ErrorColor("you are muted"))
             messageInfo.shouldBlock = true
@@ -1005,7 +1005,7 @@ void function Admin_OnClientDisconnected(entity player) {
         return
     }
 
-    string uid = player.GetUID()
+    string uid = player.GetPlayerName()
     if (file.authenticatedAdmins.contains(uid)) {
         file.authenticatedAdmins.remove(file.authenticatedAdmins.find(uid))
     }
@@ -1015,7 +1015,7 @@ void function Admin_OnClientDisconnected(entity player) {
 // welcome
 //------------------------------------------------------------------------------
 void function Welcome_OnPlayerRespawned(entity player) {
-    string uid = player.GetUID()
+    string uid = player.GetPlayerName()
     if (file.welcomedPlayers.contains(uid)) {
         return
     }
@@ -1032,7 +1032,7 @@ void function Welcome_OnPlayerRespawned(entity player) {
 }
 
 void function Welcome_OnClientDisconnected(entity player) {
-    string uid = player.GetUID()
+    string uid = player.GetPlayerName()
     if (file.welcomedPlayers.contains(uid)) {
         file.welcomedPlayers.remove(file.welcomedPlayers.find(uid))
     }
@@ -1125,7 +1125,7 @@ bool function CommandAuth(entity player, array<string> args) {
         return false
     }
 
-    file.authenticatedAdmins.append(player.GetUID())
+    file.authenticatedAdmins.append(player.GetPlayerName())
     SendMessage(player, PrivateColor("hello, admin!"))
 
     return true
@@ -1142,7 +1142,7 @@ bool function CommandKick(entity player, array<string> args) {
     }
 
     entity target = result.players[0]
-    string targetUid = target.GetUID()
+    string targetUid = target.GetPlayerName()
     string targetName = target.GetPlayerName()
 
     if (player == target) {
@@ -1202,7 +1202,7 @@ bool function CommandKick(entity player, array<string> args) {
 }
 
 void function KickPlayer(entity player, bool announce = true) {
-    string playerUid = player.GetUID()
+    string playerUid = player.GetPlayerName()
     if (playerUid in file.kickTable) {
         delete file.kickTable[playerUid]
     }
@@ -1218,7 +1218,7 @@ void function KickPlayer(entity player, bool announce = true) {
 }
 
 void function Kick_OnPlayerRespawned(entity player) {
-    if (file.kickedPlayers.contains(player.GetUID())) {
+    if (file.kickedPlayers.contains(player.GetPlayerName())) {
         Log("[Kick_OnPlayerRespawned] previously kicked " + player.GetPlayerName() + " tried to rejoin")
         KickPlayer(player, false)
     }
@@ -1448,7 +1448,7 @@ void function NextMap_OnClientDisconnected(entity player) {
 }
 
 void function NextMapHint_OnPlayerRespawned(entity player) {
-    string uid = player.GetUID()
+    string uid = player.GetPlayerName()
     if (file.nextMapHintedPlayers.contains(uid)) {
         return
     }
@@ -1496,7 +1496,7 @@ bool function CommandSwitch(entity player, array<string> args) {
         switchMsg = targetName + "'s team has been switched"
     }
 
-    string targetUid = target.GetUID()
+    string targetUid = target.GetPlayerName()
     if (!isAdminSwitch && targetUid in file.switchCountTable) {
         int switchCount = file.switchCountTable[targetUid]
         if (switchCount >= file.switchLimit) {
@@ -1721,7 +1721,7 @@ void function DoAutobalance(int fromTeam) {
     array<entity> prio1 = []
     foreach (entity player in prio2) {
         // prefer not to switch players who have manually switched
-        if (!(player.GetUID() in file.switchCountTable)) {
+        if (!(player.GetPlayerName() in file.switchCountTable)) {
             prio1.append(player)
         }
     }
@@ -1880,7 +1880,7 @@ bool function CommandMute(entity player, array<string> args) {
 
     entity target = result.players[0]
     string targetName = target.GetPlayerName()
-    string targetUid = target.GetUID()
+    string targetUid = target.GetPlayerName()
 
     if (file.mutedPlayers.contains(targetUid)) {
         SendMessage(player, ErrorColor(targetName + " is already muted"))
@@ -1902,7 +1902,7 @@ bool function CommandUnmute(entity player, array<string> args) {
 
     entity target = result.players[0]
     string targetName = target.GetPlayerName()
-    string targetUid = target.GetUID()
+    string targetUid = target.GetPlayerName()
     if (!file.mutedPlayers.contains(targetUid)) {
         SendMessage(player, ErrorColor(targetName + " is not muted"))
         return false
@@ -1915,7 +1915,7 @@ bool function CommandUnmute(entity player, array<string> args) {
 }
 
 void function Mute_OnClientDisconnected(entity player) {
-    string uid = player.GetUID()
+    string uid = player.GetPlayerName()
     if (file.mutedPlayers.contains(uid)) {
         file.mutedPlayers.remove(file.mutedPlayers.find(uid))
     }
@@ -2244,7 +2244,7 @@ void function SpawnRandomNPC(int team, vector origin, vector angles) {
 // roll
 //------------------------------------------------------------------------------
 bool function CommandRoll(entity player, array<string> args) {
-    string uid = player.GetUID()
+    string uid = player.GetPlayerName()
     int rollCount = 1
     if (uid in file.rollCountTable) {
         rollCount = file.rollCountTable[uid] + 1
@@ -2319,12 +2319,12 @@ void function Killstreak_OnPlayerKilled(entity victim, entity attacker, var dama
 }
 
 int function GetKillstreak(entity player) {
-    string uid = player.GetUID()
+    string uid = player.GetPlayerName()
     return uid in file.playerKillstreaks ? file.playerKillstreaks[uid] : 0
 }
 
 void function SetKillstreak(entity player, int killstreak) {
-    string uid = player.GetUID()
+    string uid = player.GetPlayerName()
     file.playerKillstreaks[uid] <- killstreak
 }
 
@@ -2574,12 +2574,12 @@ string function Green(string s) {
 }
 
 bool function IsAdmin(entity player) {
-    return file.adminUids.contains(player.GetUID())
+    return file.adminUids.contains(player.GetPlayerName())
 }
 
 bool function IsNonAuthenticatedAdmin(entity player) {
     if (file.adminAuthEnabled) {
-        return IsAdmin(player) && !file.authenticatedAdmins.contains(player.GetUID())
+        return IsAdmin(player) && !file.authenticatedAdmins.contains(player.GetPlayerName())
     }
 
     return false
@@ -2587,7 +2587,7 @@ bool function IsNonAuthenticatedAdmin(entity player) {
 
 bool function IsAuthenticatedAdmin(entity player) {
     if (file.adminAuthEnabled) {
-        return IsAdmin(player) && file.authenticatedAdmins.contains(player.GetUID())
+        return IsAdmin(player) && file.authenticatedAdmins.contains(player.GetPlayerName())
     }
 
     return IsAdmin(player)

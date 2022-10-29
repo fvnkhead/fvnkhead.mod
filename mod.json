@@ -220,10 +220,11 @@
         },
 
         // team size difference before autobalance kick in
+        // this should be higher than fm_switch_diff
         // eg. with 2, autobalance will occur at 5v3, for example
         {
             "Name": "fm_autobalance_diff",
-            "DefaultValue": "2"
+            "DefaultValue": "3"
         },
 
         // 1 = !extend enabled

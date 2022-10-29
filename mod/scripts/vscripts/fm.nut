@@ -1571,7 +1571,7 @@ bool function CommandSwitch(entity player, array<string> args) {
     int otherTeamCount = GetPlayerArrayOfTeam(otherTeam).len()
 
     int playerDiff = thisTeamCount - otherTeamCount
-    if (playerDiff < file.switchDiff && otherTeamCount > 0) {
+    if (!isAdminSwitch && playerDiff < file.switchDiff && otherTeamCount > 0) {
         SendMessage(player, ErrorColor(teamMsg))
         return false
     }
@@ -1588,7 +1588,7 @@ bool function CommandSwitch(entity player, array<string> args) {
     }
 
     // ctf: if player is holding a flag, he gotta die *before* setting the team
-    if (file.switchKill && IsAlive(target)) {
+    if (!isAdminSwitch && file.switchKill && IsAlive(target)) {
         target.Die()
     }
 
@@ -1674,7 +1674,7 @@ float function CalculatePlayerScore(entity player) {
         return CalculateCTFScore(player)
     }
 
-    return CalculateKDScore(player)
+    return CalculateKillScore(player)
 }
 
 float function CalculateCTFScore(entity player) {
@@ -1688,14 +1688,19 @@ float function CalculateCTFScore(entity player) {
     return score
 }
 
-float function CalculateKDScore(entity player) {
+float function CalculateKillScore(entity player) {
     int kills = player.GetPlayerGameStat(PGS_KILLS)
+    int assists = player.GetPlayerGameStat(PGS_ASSISTS)
     int deaths = player.GetPlayerGameStat(PGS_DEATHS)
     if (deaths == 0) {
         deaths = 1
     }
 
-    return float(kills) / float(deaths)
+    float ka = float(kills) + float(assists)
+    float kad = ka / float(deaths)
+
+    // number of kills + assists, multiplied by kills and assists per death
+    return ka * kad
 }
 
 int function PlayerScoreSort(PlayerScore a, PlayerScore b) {

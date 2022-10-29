@@ -24,6 +24,10 @@
             "Name": "fm_admin_password",
             "DefaultValue": "1234"
         },
+        {
+            "Name": "fm_admin_join_notification",
+            "DefaultValue": "1"
+        },
 
         {
             "Name": "fm_admin_auth_unauth_chat_block",
@@ -294,12 +298,6 @@
         {
             "Name": "fm_chat_mention_enabled",
             "DefaultValue": "1"
-        },
-
-        // integrations
-        {
-            "Name": "fm_retouched_enabled",
-            "DefaultValue": "1"
         }
     ],
 
@@ -314,6 +312,7 @@
     ],
 
     "Dependencies": {
-        "NETLIB": "fvnkhead.NetLib"
+        "NETLIB": "fvnkhead.NetLib",
+        "RETOUCHED": "Northstar.Retouched"
     }
 }

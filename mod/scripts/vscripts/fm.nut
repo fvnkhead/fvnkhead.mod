@@ -74,6 +74,7 @@ struct {
     string adminPassword
     array<string> authenticatedAdmins
     bool adminAuthUnauthChatBlock
+    bool adminJoinNotification
 
     array<CommandInfo> commands
 
@@ -176,7 +177,6 @@ struct {
 
     bool chatMentionEnabled
 
-    bool retouchedEnabled
     array<CustomCommand> retouchedCommands
 } file
 
@@ -195,6 +195,7 @@ void function fm_Init() {
     file.adminPassword = GetConVarString("fm_admin_password")
     file.authenticatedAdmins = []
     file.adminAuthUnauthChatBlock = GetConVarBool("fm_admin_auth_unauth_chat_block")
+    file.adminJoinNotification = GetConVarBool("fm_admin_join_notification")
 
     // welcome
     file.welcomeEnabled = GetConVarBool("fm_welcome_enabled")
@@ -328,9 +329,6 @@ void function fm_Init() {
     file.playerMessageTimes = {}
 
     file.chatMentionEnabled = GetConVarBool("fm_chat_mention_enabled")
-
-    // integrations
-    file.retouchedEnabled = GetConVarBool("fm_retouched_enabled") && GetConVarBool("retouched_loaded")
 
     // define commands
     CommandInfo cmdHelp = NewCommandInfo(
@@ -548,6 +546,10 @@ void function fm_Init() {
         AddCallback_OnClientDisconnected(Admin_OnClientDisconnected)
     }
 
+    if (file.adminJoinNotification) {
+        AddCallback_OnClientConnected(AdminJoinNotify_OnClientConnected)
+    }
+
     if (file.welcomeEnabled) {
         AddCallback_OnPlayerRespawned(Welcome_OnPlayerRespawned)
         AddCallback_OnClientDisconnected(Welcome_OnClientDisconnected)
@@ -715,17 +717,16 @@ void function fm_Init() {
 
     // retouched integration
     file.retouchedCommands = []
-    if (file.retouchedEnabled) {
-        foreach (array<string> changes in RETOUCHED_CHANGELIST) {
-            CustomCommand c
-            c.name = "!" + changes[0].tolower()
-            for (int i = 1; i < changes.len(); i++) {
-                c.lines.append(changes[i].tolower())
-            }
-
-            file.retouchedCommands.append(c)
+#if RETOUCHED
+    foreach (array<string> changes in RETOUCHED_CHANGELIST) {
+        CustomCommand c
+        c.name = "!" + changes[0].tolower()
+        for (int i = 1; i < changes.len(); i++) {
+            c.lines.append(changes[i].tolower())
         }
+        file.retouchedCommands.append(c)
     }
+#endif
 
     // the beef
     if (file.jokeEzfragsEnabled) {
@@ -817,17 +818,17 @@ ClServer_MessageStruct function ChatCallback(ClServer_MessageStruct messageInfo)
         }
     }
 
-    if (file.retouchedEnabled) {
-        foreach (CustomCommand c in file.retouchedCommands) {
-            if (c.name == command) {
-                foreach (string line in c.lines) {
-                    SendMessage(player, PrivateColor(line))
-                }
-
-                return messageInfo
+#if RETOUCHED
+    foreach (CustomCommand c in file.retouchedCommands) {
+        if (c.name == command) {
+            foreach (string line in c.lines) {
+                SendMessage(player, PrivateColor(line))
             }
+
+            return messageInfo
         }
     }
+#endif
 
     bool commandFound = false
     bool commandSuccess = false
@@ -1019,6 +1020,16 @@ void function Admin_OnClientDisconnected(entity player) {
     }
 }
 
+void function AdminJoinNotify_OnClientConnected(entity player)
+{
+    if (!IsAdmin(player)) {
+        return
+    }
+
+    string msg = format("an admin (%s) has joined the game", player.GetPlayerName())
+    AnnounceMessage(AnnounceColor(msg))
+}
+
 //------------------------------------------------------------------------------
 // welcome
 //------------------------------------------------------------------------------
@@ -1066,11 +1077,11 @@ bool function CommandHelp(entity player, array<string> args) {
         userCommands.append(c.name)
     }
 
-    if (file.retouchedEnabled) {
-        foreach (CustomCommand c in file.retouchedCommands) {
-            retouchedCommands.append(c.name)
-        }
+#if RETOUCHED
+    foreach (CustomCommand c in file.retouchedCommands) {
+        retouchedCommands.append(c.name)
     }
+#endif
 
     string userHelp = "available commands: " + Join(userCommands, ", ")
     SendMessage(player, PrivateColor(userHelp))

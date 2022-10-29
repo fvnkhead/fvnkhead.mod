@@ -41,6 +41,11 @@ enum PlayerSearchResultKind {
     THEM      =  3
 }
 
+enum MapRotation {
+    LINEAR = 0,
+    RANDOM = 1
+}
+
 struct PlayerSearchResult {
     int kind
     array<entity> players
@@ -97,6 +102,7 @@ struct {
     
     bool mapsEnabled
     array<string> maps
+    int mapRotation
     bool nextMapEnabled
     array<string> nextMapOnlyMaps
     table<entity, string> nextMapVoteTable
@@ -223,6 +229,12 @@ void function fm_Init() {
 
     // maps
     file.mapsEnabled = GetConVarBool("fm_maps_enabled")
+    file.mapRotation = GetConVarInt("fm_map_rotation")
+    if (file.mapRotation < MapRotation.LINEAR || file.mapRotation > MapRotation.RANDOM) {
+        string msg = format("ignoring invalid map rotation %d, defaulting to linear (0)", file.mapRotation)
+        Log(msg)
+        file.mapRotation = MapRotation.LINEAR
+    }
 
     file.maps = []
     array<string> maps = split(GetConVarString("fm_maps"), ",")
@@ -1419,15 +1431,40 @@ void function DoChangeMap(float waitTime) {
 string function GetUsualNextMap() {
     string currentMap = GetMapName()
     bool noPlayers = GetPlayerArray().len() == 0
-    bool isLastMap = currentMap == file.maps[file.maps.len() - 1]
     bool isUnknownMap = !file.maps.contains(currentMap)
-    if (noPlayers || isLastMap || isUnknownMap) {
+    if (noPlayers || isUnknownMap) {
         return file.maps[0]
     }
 
-    string nextMap = file.maps[file.maps.find(currentMap) + 1]
+    if (file.mapRotation == MapRotation.LINEAR) {
+        return GetLinearNextMap()
+    } 
 
-    return nextMap
+    return GetRandomNextMap()
+}
+
+string function GetLinearNextMap() {
+    string currentMap = GetMapName()
+    bool isLastMap = currentMap == file.maps[file.maps.len() - 1]
+    if (isLastMap) {
+        return file.maps[0]
+    }
+
+    return file.maps[file.maps.find(currentMap) + 1]
+}
+
+string function GetRandomNextMap() {
+    string currentMap = GetMapName()
+    array<string> randomMapPool = file.maps
+    if (randomMapPool.contains(currentMap)) {
+        randomMapPool.remove(randomMapPool.find(currentMap))
+    }
+
+    if (randomMapPool.len() == 0) {
+        return file.maps[0]
+    }
+
+    return randomMapPool[RandomInt(randomMapPool.len())]
 }
 
 string function DrawNextMapFromVoteTable() {

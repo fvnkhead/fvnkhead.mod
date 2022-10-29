@@ -4,6 +4,7 @@
     "Version": "1.0.0",
     "LoadPriority": 2,
     "RequiredOnClient": false,
+
     "ConVars": [
         // user & admin commands
         {
@@ -301,6 +302,7 @@
             "DefaultValue": "1"
         }
     ],
+
     "Scripts": [
         {
             "Path": "fm.nut",
@@ -309,5 +311,9 @@
                 "After": "fm_Init"
             }
         }
-    ]
+    ],
+
+    "Dependencies": {
+        "NETLIB": "fvnkhead.NetLib"
+    }
 }

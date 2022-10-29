@@ -9,6 +9,10 @@ global function fm_Init
 //------------------------------------------------------------------------------
 const int NOMAX = 9999
 
+#if NETLIB
+const int NL_CIDR = 20
+#endif
+
 const int C_SILENT   = 1 << 0
 const int C_ADMIN    = 1 << 1
 const int C_FORCE    = 1 << 2
@@ -88,6 +92,7 @@ struct {
     int kickMinPlayers
     table<string, KickInfo> kickTable
     array<string> kickedPlayers
+    array<string> kickedNetworks
     
     bool mapsEnabled
     array<string> maps
@@ -213,6 +218,7 @@ void function fm_Init() {
     file.kickMinPlayers = GetConVarInt("fm_kick_min_players")
     file.kickTable = {}
     file.kickedPlayers = []
+    file.kickedNetworks = []
 
     // maps
     file.mapsEnabled = GetConVarBool("fm_maps_enabled")
@@ -555,7 +561,9 @@ void function fm_Init() {
 
     if (file.kickEnabled) {
         file.commands.append(cmdKick)
-        AddCallback_OnPlayerRespawned(Kick_OnPlayerRespawned)
+        AddCallback_OnClientConnected(Kick_Callback)
+        AddCallback_OnPlayerRespawned(Kick_Callback)
+        AddCallback_OnPlayerKilled(Kick_OnPlayerKilled)
         AddCallback_OnClientDisconnected(Kick_OnClientDisconnected)
     }
 
@@ -1144,6 +1152,7 @@ bool function CommandKick(entity player, array<string> args) {
     entity target = result.players[0]
     string targetUid = target.GetUID()
     string targetName = target.GetPlayerName()
+    string playerDesc = GetPlayerDescr(target)
 
     if (player == target) {
         SendMessage(player, ErrorColor("you can't kick yourself"))
@@ -1158,7 +1167,7 @@ bool function CommandKick(entity player, array<string> args) {
             return false
         }
 
-        Log("[CommandKick] " + targetName + " kicked by " + player.GetPlayerName())
+        Log("[CommandKick] " + playerDesc + " kicked by " + player.GetPlayerName())
         KickPlayer(target)
         return true
     }
@@ -1191,7 +1200,7 @@ bool function CommandKick(entity player, array<string> args) {
     // kick if votes exceed threshold
     KickInfo kickInfo = file.kickTable[targetUid]
     if (kickInfo.voters.len() >= kickInfo.threshold) {
-        Log("[CommandKick] " + targetName + " kicked by player vote")
+        Log("[CommandKick] " + playerDesc + " kicked by player vote")
         KickPlayer(target)
     } else {
         int remainingVotes = kickInfo.threshold - kickInfo.voters.len()
@@ -1207,20 +1216,53 @@ void function KickPlayer(entity player, bool announce = true) {
         delete file.kickTable[playerUid]
     }
 
-    if (file.kickSave && !file.kickedPlayers.contains(playerUid)) {
-        file.kickedPlayers.append(playerUid)
+    if (file.kickSave) {
+        if (!file.kickedPlayers.contains(playerUid)) {
+            file.kickedPlayers.append(playerUid)
+        }
+
+#if NETLIB
+        string playerNetwork = NL_GetPlayerIPv4NetworkString(player, NL_CIDR)
+        if (!file.kickedNetworks.contains(playerNetwork)) {
+            file.kickedNetworks.append(playerNetwork)
+        }
+#endif
     }
 
-    ServerCommand("kick " + player.GetPlayerName())
+    ServerCommand("kickid " + playerUid)
     if (announce) {
         AnnounceMessage(AnnounceColor(player.GetPlayerName() + " has been kicked"))
     }
 }
 
-void function Kick_OnPlayerRespawned(entity player) {
-    if (file.kickedPlayers.contains(player.GetUID())) {
-        Log("[Kick_OnPlayerRespawned] previously kicked " + player.GetPlayerName() + " tried to rejoin")
+void function Kick_Callback(entity player) {
+    string playerDesc = GetPlayerDescr(player)
+
+#if NETLIB
+    string playerNetwork = NL_GetPlayerIPv4NetworkString(player, NL_CIDR)
+    if (file.kickedNetworks.contains(playerNetwork)) {
+        string msg = format("[Kick_Callback] kicking player %s due to network match: %s", playerDesc, playerNetwork)
+        Log(msg)
         KickPlayer(player, false)
+        return
+    }
+#endif
+
+    if (file.kickedPlayers.contains(player.GetUID())) {
+        string msg = format("[Kick_Callback] kicking player %s due to UID match", playerDesc)
+        Log(msg)
+        KickPlayer(player, false)
+    }
+}
+
+void function Kick_OnPlayerKilled(entity victim, entity attacker, var damageInfo)
+{
+    if (victim.IsPlayer()) {
+        Kick_Callback(victim)
+    }
+
+    if (attacker.IsPlayer()) {
+        Kick_Callback(attacker)
     }
 }
 
@@ -2685,4 +2727,17 @@ bool function CanSwitchTeams(entity player) {
 
 bool function IsCTF() {
     return GameRules_GetGameMode() == CAPTURE_THE_FLAG
+}
+
+string function GetPlayerDescr(entity player)
+{
+    if (!IsValid(player)) {
+        return ""
+    }
+
+#if NETLIB
+    return NL_GetPlayerDescription(player)
+#endif
+
+    return format("'%s'/'%s'", player.GetPlayerName(), player.GetUID())
 }

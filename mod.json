@@ -443,6 +443,6 @@
         "NETLIB": "fvnkhead.NetLib",
 
         // adds weapon balance commands if included
-        "RETOUCHED": "Northstar.Retouched"
+        "RETOUCHED": "fvnknoots.Retouched"
     }
 }

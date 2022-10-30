@@ -105,6 +105,7 @@ struct {
     int mapRotation
     bool nextMapEnabled
     array<string> nextMapOnlyMaps
+    int nextMapOnlyMapsMaxPlayers
     table<entity, string> nextMapVoteTable
     bool nextMapHintEnabled
     array<string> nextMapHintedPlayers
@@ -249,6 +250,7 @@ void function fm_Init() {
     }
     file.nextMapEnabled = GetConVarBool("fm_nextmap_enabled")
     file.nextMapOnlyMaps = []
+    file.nextMapOnlyMapsMaxPlayers = GetConVarInt("fm_nextmap_only_maps_max_players")
     file.nextMapVoteTable = {}
     file.nextMapHintEnabled = GetConVarBool("fm_nextmap_hint_enabled")
     file.nextMapHintedPlayers = []
@@ -1368,7 +1370,8 @@ bool function CommandMaps(entity player, array<string> args) {
     SendMessage(player, PrivateColor("maps in rotation: " + mapsInRotation))
     if (file.nextMapOnlyMaps.len() > 0) {
         string voteOnlyMaps = MapsString(file.nextMapOnlyMaps)
-        SendMessage(player, PrivateColor("maps by vote only: " + voteOnlyMaps))
+        string msg = format("maps by vote only (with %d players or less): %s", file.nextMapOnlyMapsMaxPlayers, voteOnlyMaps)
+        SendMessage(player, PrivateColor(msg))
     }
 
     return true
@@ -1402,6 +1405,13 @@ bool function CommandNextMap(entity player, array<string> args) {
 
     if (nextMap == GetMapName() && !file.nextMapRepeatEnabled) {
         SendMessage(player, ErrorColor("you can't vote for the current map"))
+        return false
+    }
+
+    int playerCount = GetPlayerArray().len()
+    if (file.nextMapOnlyMaps.contains(nextMap) && !file.maps.contains(nextMap) && playerCount > file.nextMapOnlyMapsMaxPlayers) {
+        string msg = format("you can only vote for %s when there are %d players or less", MapName(nextMap), file.nextMapOnlyMapsMaxPlayers)
+        SendMessage(player, ErrorColor(msg))
         return false
     }
 

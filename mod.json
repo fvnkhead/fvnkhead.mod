@@ -131,14 +131,14 @@
         // map pool for both auto-rotation and voting
         {
             "Name": "fm_maps",
-            "DefaultValue": "mp_glitch,mp_angel_city,mp_eden,mp_wargames,mp_drydock,mp_colony02,mp_black_water_canal,mp_thaw,mp_grave,mp_homestead,mp_relic02,mp_forwardbase_kodai,mp_complex3,mp_rise,mp_crashsite3"
+            "DefaultValue": "mp_glitch,mp_angel_city,mp_eden,mp_wargames,mp_drydock,mp_colony02,mp_black_water_canal,mp_thaw,mp_grave,mp_forwardbase_kodai,mp_complex3,mp_homestead,mp_relic02,mp_rise,mp_crashsite3"
         },
 
         // 0 = linear map rotation
         // 1 = random map rotation
         {
             "Name": "fm_map_rotation",
-            "DefaultValue": "1" 
+            "DefaultValue": "0" 
         },
 
         // 1 = !nextmap enabled
@@ -151,6 +151,13 @@
         {
             "Name": "fm_nextmap_only_maps", 
             "DefaultValue": "mp_lf_stacks,mp_lf_deck,mp_lf_township,mp_lf_uma,mp_lf_meadow,mp_lf_traffic"
+        },
+
+        // allow voting for nextmap-only maps only if player count is equal or less than this
+        // this prevents voting for small maps if you have lots of players
+        {
+            "Name": "fm_nextmap_only_maps_max_players",
+            "DefaultValue": "8"
         },
 
         // 1 = show a hint to use !nextmap during the match
